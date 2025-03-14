@@ -162,14 +162,27 @@
 
         async getChatFlow() {
             try {
-                // Busca o fluxo de chat ativo para o widget
-                const response = await fetch(`${CONSTANTS.CHAT_SERVER}/api/chat-flows/active`);
+                // Busca o fluxo de chat inicial conforme configuração
+                const response = await fetch(`${CONSTANTS.CHAT_SERVER}/api/chat-flows/start-flow`);
+                
                 if (!response.ok) {
-                    console.error('Erro ao buscar fluxo de chat:', response.status);
+                    if (response.status === 404) {
+                        console.info('Nenhum fluxo inicial configurado ou chat desativado');
+                    } else {
+                        console.error('Erro ao buscar fluxo de chat:', response.status);
+                    }
                     return null;
                 }
+                
                 const data = await response.json();
-                return data.success ? data.data : null;
+                
+                if (data.success && data.data) {
+                    console.info('Fluxo de chat inicial carregado:', data.data.name);
+                    return data.data;
+                } else {
+                    console.info('Nenhum fluxo de chat disponível');
+                    return null;
+                }
             } catch (error) {
                 console.error('Erro ao buscar fluxo de chat:', error);
                 return null;

@@ -45,10 +45,17 @@ class ChatFlowConfigController extends Controller
     public function update(Request $request): JsonResponse
     {
         try {
-            // Validar os dados da requisição
-            $validator = Validator::make($request->all(), [
+            // Extrair apenas os campos necessários
+            $data = [
+                'is_active' => (bool) $request->input('is_active'),
+                'start_flow' => $request->has('start_flow') && is_numeric($request->input('start_flow')) ? 
+                    (int) $request->input('start_flow') : null,
+            ];
+            
+            // Validar os dados extraídos
+            $validator = Validator::make($data, [
                 'is_active' => 'required|boolean',
-                'start_flow' => 'nullable|exists:chat_flows,id',
+                'start_flow' => 'nullable|integer|exists:chat_flows,id',
             ]);
 
             if ($validator->fails()) {
@@ -72,8 +79,8 @@ class ChatFlowConfigController extends Controller
                 DB::table('chat_flow_configs')
                     ->where('id', $config->id)
                     ->update([
-                        'is_active' => DB::raw($request->is_active ? 'TRUE' : 'FALSE'),
-                        'start_flow' => $request->start_flow,
+                        'is_active' => DB::raw($data['is_active'] ? 'TRUE' : 'FALSE'),
+                        'start_flow' => $data['start_flow'],
                         'updated_at' => now()
                     ]);
                 
@@ -83,8 +90,8 @@ class ChatFlowConfigController extends Controller
                 // Criar novo registro com cast explícito para boolean
                 $id = DB::table('chat_flow_configs')
                     ->insertGetId([
-                        'is_active' => DB::raw($request->is_active ? 'TRUE' : 'FALSE'),
-                        'start_flow' => $request->start_flow,
+                        'is_active' => DB::raw($data['is_active'] ? 'TRUE' : 'FALSE'),
+                        'start_flow' => $data['start_flow'],
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);

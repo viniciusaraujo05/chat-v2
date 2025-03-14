@@ -7,6 +7,7 @@ use App\Actions\ChatFlow\DeleteChatFlowAction;
 use App\Actions\ChatFlow\GetActiveChatFlowAction;
 use App\Actions\ChatFlow\GetAllChatFlowsAction;
 use App\Actions\ChatFlow\GetChatFlowAction;
+use App\Actions\ChatFlow\GetStartFlowAction;
 use App\Actions\ChatFlow\UpdateChatFlowAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreChatFlowRequest;
@@ -69,5 +70,20 @@ class ChatFlowController extends Controller
         return $chatFlow
             ? (new ChatFlowResource($chatFlow))->response()->setStatusCode(200)
             : response()->json(['success' => false, 'message' => 'Nenhum fluxo de chat ativo encontrado.'], 404);
+    }
+    
+    public function getStartFlow(GetStartFlowAction $action): JsonResponse
+    {
+        $chatFlow = $action();
+
+        return $chatFlow
+            ? response()->json([
+                'success' => true,
+                'data' => new ChatFlowResource($chatFlow)
+              ], 200)
+            : response()->json([
+                'success' => false, 
+                'message' => 'Nenhum fluxo de chat inicial configurado ou o chat está desativado.'
+              ], 404);
     }
 }

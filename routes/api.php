@@ -30,6 +30,7 @@ Route::group(['prefix' => 'chat-flows'], function () {
     Route::post('/', [ChatFlowController::class, 'store'])->name('chat-flows.store');
     // Rota específica deve vir ANTES das rotas com parâmetros
     Route::get('/active', [ChatFlowController::class, 'getActive'])->name('chat-flows.active');
+    Route::get('/start-flow', [ChatFlowController::class, 'getStartFlow'])->name('chat-flows.start-flow');
     // Rotas com parâmetros vêm depois
     Route::get('/{id}', [ChatFlowController::class, 'show'])->name('chat-flows.show');
     Route::put('/{id}', [ChatFlowController::class, 'update'])->name('chat-flows.update');

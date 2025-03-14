@@ -1,9 +1,6 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import ReactFlow, {
-  Controls,
-  Background,
-  MiniMap,
   useNodesState,
   useEdgesState,
   Node,
@@ -11,28 +8,22 @@ import ReactFlow, {
   Connection,
   NodeTypes,
   ReactFlowProvider,
-  Handle,
-  Position,
   MarkerType,
+  Background,
+  Controls,
+  MiniMap,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Switch } from '@/components/ui/switch';
-import { Menu, X, Loader2, Trash2, Plus, Move, MenuIcon } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
+import { Loader2, Plus, MenuIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Sheet,
@@ -44,168 +35,26 @@ import {
   SheetFooter,
   SheetClose,
 } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
 
-interface ChatFlowConfig {
-  id?: number;
-  is_active: boolean;
-  start_flow: number | null;
-  startFlow?: {
-    id: number;
-    name: string;
-  };
-}
+// Import components
+import BotMessageNode from '@/components/chat-builder/nodes/BotMessageNode';
+import ChoicesNode from '@/components/chat-builder/nodes/ChoicesNode';
+import AttendantNode from '@/components/chat-builder/nodes/AttendantNode';
+import Sidebar from '@/components/chat-builder/sidebar/Sidebar';
+import MobileSidebar from '@/components/chat-builder/sidebar/MobileSidebar';
+import HeaderControls from '@/components/chat-builder/controls/HeaderControls';
+import DeleteDialog from '@/components/chat-builder/dialogs/DeleteDialog';
+import WelcomeDialog from '@/components/chat-builder/dialogs/WelcomeDialog';
+import FlowArea from '@/components/chat-builder/flow/FlowArea';
 
-interface NodeData {
-  label: string;
-  message?: string;
-  choices?: string[];
-  sequence: number;
-}
-
-const BotMessageNode = React.memo(({ id, data, selected, onChange, onDelete }: any) => {
-  const handleInputInteraction = (e: React.MouseEvent) => e.stopPropagation();
-
-  return (
-    <Card className={`w-full md:w-72 border ${selected ? 'ring-2 ring-blue-400' : 'border-blue-600'} bg-background text-foreground shadow-md`}>
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-blue-400 border-2 border-blue-600" />
-      <CardHeader className="p-3 rounded-t-md">
-        <CardTitle className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={data.sequence}
-            onChange={(e) => onChange(id, { sequence: parseInt(e.target.value) || 0 })}
-            className="w-16 text-center bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          <Input
-            value={data.label}
-            onChange={(e) => onChange(id, { label: e.target.value })}
-            placeholder="Título"
-            className="flex-1 bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          {selected && (
-            <Button variant="destructive" size="icon" onClick={() => onDelete(id)}>
-              X
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3">
-        <Textarea
-          value={data.message || ''}
-          onChange={(e) => onChange(id, { message: e.target.value })}
-          placeholder="Mensagem do Bot"
-          className="w-full min-h-[100px] bg-muted border-input text-foreground"
-          onClick={handleInputInteraction}
-        />
-      </CardContent>
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-blue-400 border-2 border-blue-600" />
-    </Card>
-  );
-});
-
-const ChoicesNode = React.memo(({ id, data, selected, onChange, onDelete }: any) => {
-  const handleInputInteraction = (e: React.MouseEvent) => e.stopPropagation();
-
-  const addChoice = () => onChange(id, { choices: [...(data.choices || []), `Opção ${(data.choices?.length || 0) + 1}`] });
-  const updateChoice = (index: number, value: string) => {
-    const newChoices = [...(data.choices || [])];
-    newChoices[index] = value;
-    onChange(id, { choices: newChoices });
-  };
-  const removeChoice = (index: number) => onChange(id, { choices: data.choices.filter((_: any, i: number) => i !== index) });
-
-  return (
-    <Card className={`w-full md:w-72 border ${selected ? 'ring-2 ring-green-400' : 'border-green-600'} bg-background text-foreground shadow-md`}>
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-green-400 border-2 border-green-600" />
-      <CardHeader className="p-3 rounded-t-md">
-        <CardTitle className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={data.sequence}
-            onChange={(e) => onChange(id, { sequence: parseInt(e.target.value) || 0 })}
-            className="w-16 text-center bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          <Input
-            value={data.label}
-            onChange={(e) => onChange(id, { label: e.target.value })}
-            placeholder="Título"
-            className="flex-1 bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          {selected && (
-            <Button variant="destructive" size="icon" onClick={() => onDelete(id)}>
-              X
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3">
-        <Label className="text-muted-foreground">Escolhas:</Label>
-        {(data.choices || []).map((choice: string, index: number) => (
-          <div key={index} className="flex items-center gap-2 mb-2 relative">
-            <Input
-              value={choice}
-              onChange={(e) => updateChoice(index, e.target.value)}
-              className="flex-1 bg-muted border-input text-foreground"
-              onClick={handleInputInteraction}
-            />
-            <Button variant="destructive" size="icon" onClick={() => removeChoice(index)}>
-              X
-            </Button>
-            <Handle
-              type="source"
-              position={Position.Right}
-              id={`choice-${index}`}
-              className="w-3 h-3 bg-green-400 border-2 border-green-600 absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2"
-            />
-          </div>
-        ))}
-        <Button variant="outline" onClick={addChoice} className="w-full mt-2">
-          + Adicionar Escolha
-        </Button>
-      </CardContent>
-    </Card>
-  );
-});
-
-const AttendantNode = React.memo(({ id, data, selected, onChange, onDelete }: any) => {
-  const handleInputInteraction = (e: React.MouseEvent) => e.stopPropagation();
-
-  return (
-    <Card className={`w-full md:w-72 border ${selected ? 'ring-2 ring-purple-400' : 'border-purple-600'} bg-background text-foreground shadow-md`}>
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-purple-400 border-2 border-purple-600" />
-      <CardHeader className="p-3 rounded-t-md">
-        <CardTitle className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={data.sequence}
-            onChange={(e) => onChange(id, { sequence: parseInt(e.target.value) || 0 })}
-            className="w-16 text-center bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          <Input
-            value={data.label}
-            onChange={(e) => onChange(id, { label: e.target.value })}
-            placeholder="Título"
-            className="flex-1 bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          {selected && (
-            <Button variant="destructive" size="icon" onClick={() => onDelete(id)}>
-              X
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3 text-muted-foreground">
-        Inicia o chat com um atendente humano.
-      </CardContent>
-    </Card>
-  );
-});
+// Import types and services
+import { NodeData, ChatFlowConfig, ChatFlow } from '@/components/chat-builder/types';
+import { chatFlowService } from '@/components/chat-builder/services/chatFlowService';
 
 const ChatBuilder: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
@@ -302,7 +151,15 @@ const ChatBuilder: React.FC = () => {
         toast({ title: 'Fluxo Atualizado', description: 'Alterações salvas com sucesso!' });
       } else {
         response = await axios.post('/api/chat-flows', flowData);
-        setFlowId(response.data.data.id);
+        // Garantir que o ID seja armazenado como string de um número
+        const newId = response.data.data.id;
+        if (newId && (typeof newId === 'number' || (typeof newId === 'string' && /^\d+$/.test(newId)))) {
+          setFlowId(newId.toString());
+          console.log('Fluxo criado com ID:', newId);
+        } else {
+          console.error('ID inválido retornado pela API:', newId);
+          setFlowId(null);
+        }
         toast({ title: 'Fluxo Criado', description: 'Novo fluxo salvo com sucesso!' });
       }
     } catch (error: any) {
@@ -359,58 +216,101 @@ const ChatBuilder: React.FC = () => {
         return;
       }
 
+      // Limpar o canvas atual antes de carregar o novo fluxo
+      setNodes([]);
+      setEdges([]);
+      
+      // Atualizar informações básicas do fluxo
+      setFlowName(flowData.name);
+      setFlowDescription(flowData.description || '');
+      setFlowId(flowData.id);
+
       // Lidar com flow_data como string ou como objeto
       let parsedFlowData;
       try {
         if (!flowData.flow_data) {
           console.error('flow_data está vazio ou não existe');
-          parsedFlowData = { nodes: [], edges: [] };
           toast({ variant: 'default', title: 'Fluxo Vazio', description: 'O fluxo não contém dados estruturados' });
+          return;
+        } 
+        
+        console.log('Tipo do flow_data:', typeof flowData.flow_data);
+
+        if (typeof flowData.flow_data === 'string') {
+          console.log('flow_data é uma string, tentando fazer parse JSON');
+          parsedFlowData = JSON.parse(flowData.flow_data);
         } else {
-          console.log('Tipo do flow_data:', typeof flowData.flow_data);
+          console.log('flow_data já é um objeto');
+          parsedFlowData = flowData.flow_data;
+        }
 
-          if (typeof flowData.flow_data === 'string') {
-            console.log('flow_data é uma string, tentando fazer parse JSON');
-            parsedFlowData = JSON.parse(flowData.flow_data);
-          } else {
-            console.log('flow_data já é um objeto');
-            parsedFlowData = flowData.flow_data;
-          }
+        // Verificar e formatar nós para ReactFlow
+        if (!parsedFlowData.nodes || !Array.isArray(parsedFlowData.nodes)) {
+          console.error('nodes inválidos em parsedFlowData');
+          parsedFlowData.nodes = [];
+        } else {
+          // Garantir que todos os nós tenham o tipo correto definido
+          parsedFlowData.nodes = parsedFlowData.nodes.map((node: any) => {
+            // Se o nó não tiver tipo, tente determiná-lo com base em sua estrutura
+            if (!node.type && node.data) {
+              if (node.data.choices) {
+                node.type = 'choices';
+              } else if (node.data.message) {
+                node.type = 'botMessage';
+              } else {
+                node.type = 'attendant';
+              }
+              console.log(`Tipo determinado para nó ${node.id}: ${node.type}`);
+            }
+            return node;
+          });
+        }
 
-          // Verificar estrutura do parsedFlowData
-          if (!parsedFlowData.nodes || !Array.isArray(parsedFlowData.nodes)) {
-            console.error('nodes inválidos em parsedFlowData');
-            parsedFlowData.nodes = [];
-          }
-
-          if (!parsedFlowData.edges || !Array.isArray(parsedFlowData.edges)) {
-            console.error('edges inválidos em parsedFlowData');
-            parsedFlowData.edges = [];
-          }
+        // Verificar e formatar arestas para ReactFlow
+        if (!parsedFlowData.edges || !Array.isArray(parsedFlowData.edges)) {
+          console.error('edges inválidos em parsedFlowData');
+          parsedFlowData.edges = [];
+        } else {
+          // Garantir que todas as arestas tenham propriedades válidas
+          parsedFlowData.edges = parsedFlowData.edges.map((edge: any) => {
+            return {
+              ...edge,
+              type: edge.type || 'smoothstep',
+              animated: true,
+              style: edge.style || { stroke: '#3b82f6', strokeWidth: 2 },
+              markerEnd: edge.markerEnd || { type: MarkerType.ArrowClosed, color: '#3b82f6' }
+            };
+          });
         }
       } catch (parseError) {
         console.error('Erro ao analisar flow_data:', parseError);
         parsedFlowData = { nodes: [], edges: [] };
         toast({ variant: 'destructive', title: 'Erro de Parse', description: 'Não foi possível analisar os dados do fluxo' });
+        return;
       }
 
       console.log('Flow data parseado:', parsedFlowData);
-      console.log('Nodes:', parsedFlowData?.nodes);
-      console.log('Edges:', parsedFlowData?.edges);
+      console.log('Nodes preparados:', parsedFlowData?.nodes);
+      console.log('Edges preparados:', parsedFlowData?.edges);
 
-      // Limpar o canvas atual antes de carregar o novo fluxo
-      setNodes([]);
-      setEdges([]);
-
-      // Pequeno timeout para garantir que o canvas foi limpo
+      // Usar um timeout para garantir que o processo de renderização ocorra corretamente
       setTimeout(() => {
-        setNodes(parsedFlowData?.nodes || []);
-        setEdges(parsedFlowData?.edges || []);
-        setFlowName(flowData.name);
-        setFlowDescription(flowData.description || '');
-        setFlowId(flowData.id);
-        toast({ title: 'Fluxo Carregado', description: 'Fluxo carregado com sucesso!' });
-      }, 100);
+        try {
+          // Aplicar nós e arestas formatados no ReactFlow
+          setNodes(parsedFlowData?.nodes || []);
+          setEdges(parsedFlowData?.edges || []);
+          toast({ title: 'Fluxo Carregado', description: 'Fluxo carregado com sucesso!' });
+          
+          // Forçar o ReactFlow a se ajustar à visualização após o carregamento
+          setTimeout(() => {
+            // Despache um evento de redimensionamento para forçar o ReactFlow a recalcular
+            window.dispatchEvent(new Event('resize'));
+          }, 300);
+        } catch (renderError) {
+          console.error('Erro ao renderizar fluxo:', renderError);
+          toast({ variant: 'destructive', title: 'Erro de Renderização', description: 'Não foi possível renderizar o fluxo no editor' });
+        }
+      }, 200);
 
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || 'Erro ao carregar o fluxo.';
@@ -583,7 +483,7 @@ const ChatBuilder: React.FC = () => {
 
   // Detecta se a tela é pequena (mobile)
   const [isMobile, setIsMobile] = useState(false);
-  const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(true);
+  const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
   const [availableFlows, setAvailableFlows] = useState<any[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
@@ -679,6 +579,22 @@ const ChatBuilder: React.FC = () => {
       if ('is_active' in configToSend) {
         configToSend.is_active = Boolean(configToSend.is_active);
       }
+      
+      // Garantir que start_flow seja um número válido ou null
+      if ('start_flow' in configToSend) {
+        const rawValue = configToSend.start_flow;
+        if (rawValue === null || rawValue === undefined) {
+          configToSend.start_flow = null;
+        } else if (typeof rawValue === 'number') {
+          configToSend.start_flow = rawValue;
+        } else if (typeof rawValue === 'string' && /^\d+$/.test(rawValue)) {
+          configToSend.start_flow = parseInt(rawValue, 10);
+        } else {
+          // Se não for um número válido, define como null
+          configToSend.start_flow = null;
+          console.warn('Valor inválido para start_flow, definindo como null:', rawValue);
+        }
+      }
 
       if (process.env.NODE_ENV === 'development') {
         console.log('Enviando configuração para API:', configToSend);
@@ -727,14 +643,24 @@ const ChatBuilder: React.FC = () => {
         console.log('Alternando estado do builder para:', newState);
       }
 
-      // Criar objeto de configuração manualmente sem referenciar flowConfig
-      const configToSend = {
-        // Manter o ID atual e o start_flow se existirem
-        id: flowConfig.id,
-        start_flow: flowConfig.start_flow,
-        // Atualizar apenas is_active
-        is_active: Boolean(newState) // Garantir que seja boolean
+      // Simplificar o payload para evitar erros de tipo
+      const payload: {
+        is_active: boolean;
+        start_flow?: number | null;
+      } = {
+        is_active: Boolean(newState)
       };
+      
+      // Só incluir start_flow se for um número válido
+      const currentStartFlow = flowConfig.start_flow;
+      if (currentStartFlow !== null && currentStartFlow !== undefined) {
+        if (typeof currentStartFlow === 'number') {
+          payload.start_flow = currentStartFlow;
+        } else if (typeof currentStartFlow === 'string' && /^\d+$/.test(currentStartFlow)) {
+          payload.start_flow = parseInt(currentStartFlow, 10);
+        }
+        // Se não for válido, não incluir no payload
+      }
 
       // Configurar indicador de loading
       const loadingToast = toast({
@@ -742,7 +668,7 @@ const ChatBuilder: React.FC = () => {
         description: <div className="flex items-center"><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando configuração</div>,
       });
 
-      const response = await axios.put('/api/chat-flow-config', configToSend);
+      const response = await axios.put('/api/chat-flow-config', payload);
 
       if (response.data.success) {
         if (process.env.NODE_ENV === 'development') {
@@ -785,15 +711,39 @@ const ChatBuilder: React.FC = () => {
     }
 
     try {
+      // Verificar se flowId é um número válido
+      if (!/^\d+$/.test(flowId)) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'ID do fluxo inválido. O ID deve ser um número.'
+        });
+        return;
+      }
+
       console.log('Definindo como fluxo inicial:', flowId);
       // Converter para número inteiro
       const flowIdInt = parseInt(flowId, 10);
+      
+      if (isNaN(flowIdInt)) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'Não foi possível converter o ID para número.'
+        });
+        return;
+      }
+      
+      // Enviar apenas os dados necessários, com tipos corretos
+      const payload = {
+        is_active: flowConfig.is_active === true,
+        start_flow: flowIdInt
+      };
+      
+      console.log('Payload para API:', payload);
 
-      const newConfig = { ...flowConfig, start_flow: flowIdInt };
-      console.log('Nova configuração:', newConfig);
-
-      // Fazer a atualização via API
-      const response = await axios.put('/api/chat-flow-config', newConfig);
+      // Usar diretamente o payload simplificado
+      const response = await axios.put('/api/chat-flow-config', payload);
 
       if (response.data.success) {
         console.log('Configuração atualizada com sucesso:', response.data.data);
@@ -850,11 +800,17 @@ const ChatBuilder: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       console.log('Iniciando carregamento de dados iniciais...');
+      // Establecer explícitamente que estamos cargando
       setIsInitialLoading(true);
       try {
         // Primeiro, carregar a configuração do ChatFlow
         await loadConfig();
         console.log('Configuração carregada:', flowConfig);
+        
+        // Importante: Obtemos a configuração atualizada diretamente
+        const currentConfig = await axios.get('/api/chat-flow-config');
+        const config = currentConfig.data.data || { is_active: false, start_flow: null };
+        console.log('Configuração atual obtida diretamente:', config);
 
         const response = await axios.get('/api/chat-flows');
         console.log('Resposta completa da API:', response.data);
@@ -878,33 +834,50 @@ const ChatBuilder: React.FC = () => {
           });
         }
 
-        if (flows.length === 0) {
-          // Se não houver fluxos, não mostramos o diálogo e criamos um novo fluxo
-          console.log('Nenhum fluxo encontrado, criando um novo fluxo');
-          createNewFlow();
+        // Verificar inicialmente se o chat está ativado, antes de qualquer outra decisão
+        if (!config.is_active) {
+          // Se o chat estiver desativado, NUNCA mostramos o diálogo
+          console.log('Chat está desativado, não mostraremos o diálogo de seleção');
           setIsWelcomeDialogOpen(false);
-        } else if (flows.length === 1) {
-          // Se houver apenas um fluxo, carregamos automaticamente
-          console.log('Um único fluxo encontrado, carregando automaticamente');
-          await loadFlow(flows[0].id);
-          setIsWelcomeDialogOpen(false);
+          
+          if (flows.length === 0) {
+            console.log('Nenhum fluxo encontrado, criando um novo fluxo');
+            createNewFlow();
+          } else {
+            console.log('Carregando o primeiro fluxo disponível sem mostrar diálogo');
+            await loadFlow(flows[0].id);
+          }
         } else {
-          // Se houver múltiplos fluxos, verificamos se há um fluxo inicial configurado
-          if (flowConfig.start_flow) {
-            const startFlow = flows.find((flow: { id: number; name: string }) => flow.id === flowConfig.start_flow);
-            if (startFlow) {
-              console.log('Carregando fluxo inicial configurado:', startFlow.name);
-              await loadFlow(startFlow.id);
-              setIsWelcomeDialogOpen(false);
+          // O chat está ativado, agora aplicamos a lógica normal
+          if (flows.length === 0) {
+            // Se não houver fluxos, não mostramos o diálogo e criamos um novo fluxo
+            console.log('Nenhum fluxo encontrado, criando um novo fluxo');
+            createNewFlow();
+            setIsWelcomeDialogOpen(false);
+          } else if (flows.length === 1) {
+            // Se houver apenas um fluxo, carregamos automaticamente
+            console.log('Um único fluxo encontrado, carregando automaticamente');
+            await loadFlow(flows[0].id);
+            setIsWelcomeDialogOpen(false);
+          } else {
+            // Múltiplos fluxos e chat ativado
+            // Verificamos se há um fluxo inicial configurado
+            if (config.start_flow) {
+              const startFlow = flows.find((flow: { id: number; name: string }) => flow.id === config.start_flow);
+              if (startFlow) {
+                console.log('Carregando fluxo inicial configurado:', startFlow.name);
+                await loadFlow(startFlow.id);
+                setIsWelcomeDialogOpen(false);
+              } else {
+                // Se houver múltiplos fluxos, mostramos o diálogo para o usuário escolher
+                console.log('Múltiplos fluxos encontrados, mostrando diálogo de seleção');
+                setIsWelcomeDialogOpen(true);
+              }
             } else {
               // Se houver múltiplos fluxos, mostramos o diálogo para o usuário escolher
               console.log('Múltiplos fluxos encontrados, mostrando diálogo de seleção');
               setIsWelcomeDialogOpen(true);
             }
-          } else {
-            // Se houver múltiplos fluxos, mostramos o diálogo para o usuário escolher
-            console.log('Múltiplos fluxos encontrados, mostrando diálogo de seleção');
-            setIsWelcomeDialogOpen(true);
           }
         }
       } catch (error: unknown) {
@@ -923,7 +896,11 @@ const ChatBuilder: React.FC = () => {
         createNewFlow();
         setIsWelcomeDialogOpen(false);
       } finally {
-        setIsInitialLoading(false);
+        // Añadir un pequeño retraso para asegurar que se ve la pantalla de carga
+        setTimeout(() => {
+          setIsInitialLoading(false);
+          console.log('Carga finalizada, ocultando pantalla de carga');
+        }, 800);
       }
     };
 
@@ -932,10 +909,21 @@ const ChatBuilder: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadFlow, createNewFlow, loadConfig]);
 
-  /* Nota: removemos o loading de tela completa e o adicionamos na área do ReactFlow */
 
   return (
     <>
+      {/* Pantalla de carga mientras se verifica el estado del chat */}
+      {isInitialLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" 
+             style={{ pointerEvents: 'all' }}>
+          <div className="flex flex-col items-center space-y-4 p-8 bg-card rounded-lg shadow-xl border border-border animate-in fade-in-50 duration-300">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-lg font-medium text-foreground">Carregando configurações do chat...</p>
+            <p className="text-sm text-muted-foreground">Verificando status e fluxos disponíveis</p>
+          </div>
+        </div>
+      )}
+
       {/* Diálogo de confirmação de exclusão */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="bg-background border-border text-foreground max-w-md w-full">
@@ -1051,324 +1039,60 @@ const ChatBuilder: React.FC = () => {
 
       <AppLayout>
         <ReactFlowProvider>
-          <div className="relative h-screen bg-background text-foreground flex flex-col md:flex-row">
-            {/* Barra de navegação móvel */}
-            <div className="md:hidden flex items-center justify-between p-4 border-b border-border">
-              <h3 className="text-lg font-semibold">Chat Builder</h3>
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MenuIcon className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[80%] p-0 bg-background text-foreground">
-                  <SheetHeader className="p-4 border-b border-border">
-                    <SheetTitle>Menu</SheetTitle>
-                  </SheetHeader>
-                  <div className="p-4 space-y-4">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Elementos</h3>
-                      <div className="space-y-2">
-                        <Button
-                          className="w-full bg-blue-600 hover:bg-blue-700"
-                          onClick={() => {
-                            addNode('botMessage');
-                            setMobileMenuOpen(false);
-                          }}
-                        >
-                          Mensagem do Bot
-                        </Button>
-                        <Button
-                          className="w-full bg-green-600 hover:bg-green-700"
-                          onClick={() => {
-                            addNode('choices');
-                            setMobileMenuOpen(false);
-                          }}
-                        >
-                          Escolhas do Cliente
-                        </Button>
-                        <Button
-                          className="w-full bg-purple-600 hover:bg-purple-700"
-                          onClick={() => {
-                            addNode('attendant');
-                            setMobileMenuOpen(false);
-                          }}
-                        >
-                          Atendente Humano
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => {
-                          fetchFlows();
-                          setMobileMenuOpen(false);
-                        }}
-                        disabled={isFetchingFlows}
-                      >
-                        {isFetchingFlows && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isFetchingFlows ? 'Carregando...' : 'Carregar Fluxo'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => {
-                          createNewFlow();
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        Novo Fluxo
-                      </Button>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-2">Instruções</h4>
-                      <ul className="text-xs text-muted-foreground space-y-1">
-                        <li>1/B: Mensagem</li>
-                        <li>2/C: Escolhas</li>
-                        <li>3/A: Atendente</li>
-                        <li>Delete: Excluir</li>
-                        <li>Arraste para conectar</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <SheetFooter className="p-4 border-t border-border">
-                    <SheetClose asChild>
-                      <Button variant="outline" className="w-full">Fechar</Button>
-                    </SheetClose>
-                  </SheetFooter>
-                </SheetContent>
-              </Sheet>
-            </div>
+          <div className="relative h-screen bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
+            {/* Header Controls Component */}
+            <HeaderControls 
+              flowName={flowName}
+              setFlowName={setFlowName}
+              flowDescription={flowDescription}
+              setFlowDescription={setFlowDescription}
+              isBuilderEnabled={isBuilderEnabled}
+              toggleChatFlowActive={toggleChatFlowActive}
+              isSaving={isSaving}
+              saveFlow={saveFlow}
+              flowId={flowId}
+              flowConfig={flowConfig}
+              setAsStartFlow={setAsStartFlow}
+            />
+            
+            {/* Desktop Sidebar Component */}
+            <Sidebar 
+              isBuilderEnabled={isBuilderEnabled}
+              addNode={addNode}
+              fetchFlows={fetchFlows}
+              createNewFlow={createNewFlow}
+              isFetchingFlows={isFetchingFlows}
+              toggleChatFlowActive={toggleChatFlowActive}
+            />
 
-            {/* Menu lateral para desktop */}
-            <div className="hidden md:block w-64 p-4 bg-background border-r border-border shadow-lg overflow-auto">
-              <h3 className="text-lg font-semibold mb-4">Elementos</h3>
-              <div className="space-y-2">
-                <Button
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  onClick={() => addNode('botMessage')}
-                  disabled={!isBuilderEnabled}
-                >
-                  Mensagem do Bot
-                </Button>
-                <Button
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  onClick={() => addNode('choices')}
-                  disabled={!isBuilderEnabled}
-                >
-                  Escolhas do Cliente
-                </Button>
-                <Button
-                  className="w-full bg-purple-600 hover:bg-purple-700"
-                  onClick={() => addNode('attendant')}
-                  disabled={!isBuilderEnabled}
-                >
-                  Atendente Humano
-                </Button>
-              </div>
-              <div className="mt-6 space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={fetchFlows}
-                  disabled={isFetchingFlows || !isBuilderEnabled}
-                >
-                  {isFetchingFlows && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isFetchingFlows ? 'Carregando...' : 'Carregar Fluxo'}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={createNewFlow}
-                  disabled={!isBuilderEnabled}
-                >
-                  Novo Fluxo
-                </Button>
-              </div>
+            {/* Mobile Sidebar Component */}
+            <MobileSidebar 
+              mobileMenuOpen={mobileMenuOpen}
+              setMobileMenuOpen={setMobileMenuOpen}
+              addNode={addNode}
+              fetchFlows={fetchFlows}
+              createNewFlow={createNewFlow}
+              isFetchingFlows={isFetchingFlows}
+              isBuilderEnabled={isBuilderEnabled}
+              toggleChatFlowActive={toggleChatFlowActive}
+            />
 
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Status do Builder</h4>
-                <div className="flex items-center space-x-2 mb-4 p-2 bg-muted rounded-md">
-                  <Switch
-                    id="sidebar-builder-switch"
-                    checked={isBuilderEnabled}
-                    onCheckedChange={toggleChatFlowActive}
-                  />
-                  <Label htmlFor="sidebar-builder-switch" className="text-sm cursor-pointer">
-                    {isBuilderEnabled ? 'Ativado' : 'Desativado'}
-                  </Label>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Instruções</h4>
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>1/B: Mensagem</li>
-                  <li>2/C: Escolhas</li>
-                  <li>3/A: Atendente</li>
-                  <li>Delete: Excluir</li>
-                  <li>Arraste para conectar</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="flex-1 relative">
-              {/* Barra superior com controles de fluxo e switch de ativação */}
-              <div className="absolute z-10 top-4 left-4 right-4 p-2 md:p-4 bg-background shadow-md rounded-md border border-border">
-                <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
-                  <div className="flex items-center justify-between w-full md:w-auto md:mr-4 p-2 bg-muted rounded-md border border-input">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="builder-switch"
-                        checked={isBuilderEnabled}
-                        onCheckedChange={toggleChatFlowActive}
-                      />
-                      <Label htmlFor="builder-switch" className="text-sm font-medium">
-                        {isBuilderEnabled ? 'Chat Builder Ativado' : 'Chat Builder Desativado'}
-                      </Label>
-                    </div>
-                  </div>
-                  <div className="flex-1 flex flex-col md:flex-row gap-2">
-                    <Input
-                      value={flowName}
-                      onChange={(e) => setFlowName(e.target.value)}
-                      placeholder="Nome do Fluxo"
-                      className="w-full md:w-48 bg-muted border-input text-foreground"
-                      disabled={!isBuilderEnabled}
-                    />
-                    <Input
-                      value={flowDescription}
-                      onChange={(e) => setFlowDescription(e.target.value)}
-                      placeholder="Descrição"
-                      className="w-full md:w-48 bg-muted border-input text-foreground"
-                      disabled={!isBuilderEnabled}
-                    />
-                  </div>
-                  <div className="flex flex-col md:flex-row gap-2 mt-2 md:mt-0">
-                    <Button
-                      onClick={saveFlow}
-                      disabled={isSaving || !isBuilderEnabled}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {isSaving ? 'Salvando...' : flowId ? 'Atualizar' : 'Salvar'}
-                    </Button>
-
-                    {flowId && (
-                      <Button
-                        onClick={setAsStartFlow}
-                        disabled={!isBuilderEnabled || !flowId}
-                        variant={flowConfig.start_flow?.toString() === flowId ? "default" : "outline"}
-                        className={flowConfig.start_flow?.toString() === flowId ? "bg-green-600 hover:bg-green-700" : ""}
-                        title={flowConfig.start_flow?.toString() === flowId ? "Este já é o fluxo inicial" : "Definir como fluxo inicial"}
-                      >
-                        {flowConfig.start_flow?.toString() === flowId ? "Fluxo Inicial" : "Definir como Inicial"}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Área do fluxo */}
-              <div className="h-full pt-[80px] md:pt-[68px] relative">
-                {/* Overlay quando Chat Builder está desativado */}
-                {!isBuilderEnabled && (
-                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
-                    <div className="text-center p-6 bg-card border border-border rounded-lg shadow-lg max-w-md">
-                      <h3 className="text-xl font-bold mb-4 text-foreground">Chat Builder Desativado</h3>
-                      <p className="text-muted-foreground mb-6">Ative o Chat Builder usando o switch no topo da página para começar a editar os fluxos de chat.</p>
-                      <div className="flex items-center justify-center space-x-3">
-                        <Switch
-                          id="builder-switch-overlay"
-                          checked={isBuilderEnabled}
-                          onCheckedChange={toggleChatFlowActive}
-                        />
-                        <Label htmlFor="builder-switch-overlay" className="cursor-pointer">
-                          Ativar agora
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {isInitialLoading ? (
-                  <div className="w-full h-full flex items-center justify-center bg-background border border-border rounded-md overflow-hidden">
-                    <div className="p-6 bg-card border border-border rounded-lg shadow-md">
-                      <div className="flex flex-col items-center space-y-3">
-                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                        <h2 className="text-lg font-semibold text-foreground">Carregando Chat Builder</h2>
-                        <p className="text-sm text-muted-foreground text-center">Verificando configuração do Chat Flow...</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    onNodesChange={isBuilderEnabled ? onNodesChange : undefined}
-                    onEdgesChange={isBuilderEnabled ? onEdgesChange : undefined}
-                    onConnect={isBuilderEnabled ? onConnect : undefined}
-                    nodeTypes={nodeTypes}
-                    onNodeClick={isBuilderEnabled ? (_, node) => setSelectedNodeId(node.id) : undefined}
-                    fitView
-                    snapToGrid={true}
-                    snapGrid={[20, 20]}
-                    defaultEdgeOptions={{
-                      type: 'smoothstep',
-                      animated: true,
-                      style: { stroke: '#3b82f6', strokeWidth: 2 },
-                      markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
-                    }}
-                    className="bg-background"
-                    zoomOnDoubleClick={!isMobile && isBuilderEnabled}
-                    zoomOnScroll={!isMobile && isBuilderEnabled}
-                    panOnScroll={!isMobile && isBuilderEnabled}
-                    panOnDrag={isBuilderEnabled}
-                    zoomOnPinch={isBuilderEnabled}
-                    nodesDraggable={isBuilderEnabled}
-                    nodesConnectable={isBuilderEnabled}
-                    elementsSelectable={isBuilderEnabled}
-                  >
-                    <Background gap={20} color="#444" />
-                    <Controls
-                      className="bg-background border-border"
-                      showInteractive={!isMobile}
-                      position={isMobile ? "bottom-right" : "bottom-left"}
-                    />
-                    {!isMobile && <MiniMap
-                      nodeStrokeWidth={3}
-                      className="bg-background border-border"
-                      zoomable
-                      pannable
-                    />}
-                  </ReactFlow>
-                )}
-                {isMobile && isBuilderEnabled && (
-                  <div className="fixed bottom-4 right-4 flex flex-col space-y-2 z-20">
-                    <Button
-                      className="rounded-full h-12 w-12 p-0 bg-blue-600 hover:bg-blue-700 shadow-lg flex items-center justify-center"
-                      onClick={() => addNode('botMessage')}
-                    >
-                      <Plus className="h-6 w-6" />
-                    </Button>
-                    <Button
-                      className="rounded-full h-12 w-12 p-0 bg-green-600 hover:bg-green-700 shadow-lg flex items-center justify-center"
-                      onClick={() => addNode('choices')}
-                    >
-                      <Plus className="h-6 w-6" />
-                    </Button>
-                    <Button
-                      className="rounded-full h-12 w-12 p-0 bg-purple-600 hover:bg-purple-700 shadow-lg flex items-center justify-center"
-                      onClick={() => addNode('attendant')}
-                    >
-                      <Plus className="h-6 w-6" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Flow Area Component */}
+            <FlowArea 
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              nodeTypes={nodeTypes}
+              isBuilderEnabled={isBuilderEnabled}
+              isInitialLoading={isInitialLoading}
+              isMobile={isMobile}
+              setSelectedNodeId={setSelectedNodeId}
+              selectedNodeId={selectedNodeId}
+              toggleChatFlowActive={toggleChatFlowActive}
+              addNode={addNode}
+            />
           </div>
 
           <style dangerouslySetInnerHTML={{
