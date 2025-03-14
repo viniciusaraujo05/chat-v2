@@ -1,0 +1,420 @@
+/* Tooltip para ajudar na conexão */
+.handle-tooltip {
+  position: fixed;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Animação de pulso para destacar os handles */
+.pulse-animation {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+}
+
+/* Ocultar os handles para simplificar a interface */
+.react-flow__handle {
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Estilo para o indicador flutuante de conexão */
+#connection-floating-tip {
+  font-size: 14px;
+  font-weight: 500;
+  animation: fadeInOut 1.5s ease infinite alternate;
+}
+
+@keyframes fadeInOut {
+  from { opacity: 0.8; }
+  to { opacity: 1; }
+}
+
+/* Os nós são clicáveis e isso é mais importante que os handles */
+.react-flow__node {
+  cursor: pointer !important;
+  z-index: 10 !important;
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.3) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Destacar a linha de conexão */
+.react-flow__connection-path {
+  stroke: #3b82f6 !important;
+  stroke-width: 3px !important;
+  stroke-dasharray: 5 !important;
+  animation: dash 1s linear infinite !important;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Melhorar a aparência das conexões */
+.react-flow__connection {
+  z-index: 1000 !important;
+  pointer-events: none !important;
+  opacity: 0.8 !important;
+}
+
+/* Definir estilo para animação no botão de conexão */
+@keyframes pulse-btn {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Aplicar animação ao botão em modo ativo */
+.connection-mode-btn.active {
+  animation: pulse-btn 1.5s infinite ease-in-out;
+}
+
+/* Melhorar a visualização do nó selecionado */
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px #3b82f6 !important;
+}
+
+/* Estilo para handles disponíveis para conexão */
+.react-flow__handle.possible-connection {
+  transform: scale(1.5) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4) !important;
+  animation: pulse 1.5s infinite !important;
+}
+
+/* Garantir que os handles sejam visíveis e clicáveis */
+.react-flow__handle {
+  pointer-events: all !important;
+}
+
+/* Melhorar a aparência do handle quando estiver conectando */
+.react-flow__handle.connecting {
+  background-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3) !important;
+  transform: scale(1.5) !important;
+}
+
+/* Estilo para handles que podem ser alvos de conexão */
+.react-flow__handle.potential-target {
+  background-color: #60a5fa !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+  animation: gentle-pulse 1.5s infinite !important;
+}
+
+@keyframes gentle-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+  }
+  70% {
+    transform: scale(1.3);
+    box-shadow: 0 0 0 5px rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+/* Garantir que inputs e textareas recebam eventos de mouse */
+.react-flow__node input, 
+.react-flow__node textarea,
+.react-flow__node button {
+  pointer-events: all !important;
+  z-index: 1000 !important;
+}
+
+/* Classe nodrag para inputs */
+.react-flow__node .nodrag {
+  pointer-events: all !important;
+  cursor: text !important;
+  z-index: 1000 !important;
+  /* Impedir que este elemento seja arrastado */
+  -webkit-touch-callout: text !important;
+  -webkit-user-select: text !important;
+  -khtml-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Assegurar que os nós mantenham interação */
+.react-flow__node {
+  pointer-events: auto !important;
+}
+
+/* Configuração para handles (pontos de conexão) */
+.react-flow__handle {
+  z-index: 100 !important;
+  width: 12px !important;
+  height: 12px !important;
+  background-color: #3b82f6 !important;
+  border: 2px solid #ffffff !important;
+  transition: transform 0.2s !important;
+}
+
+/* Aumentar o tamanho dos handles ao passar o mouse */
+.react-flow__handle:hover {
+  transform: scale(1.5) !important;
+  cursor: crosshair !important;
+}
+
+/* Diminuir a prioridade do painel de fundo */
+.react-flow__pane {
+  z-index: 0 !important;
+}
+
+/* Garantir que o conteúdo dos cards receba eventos */
+.react-flow__node .card-content * {
+  pointer-events: all !important;
+}
+
+/* Desativar seleção de texto global */
+.react-flow__renderer {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Reativar seleção de texto em inputs */
+.react-flow__node input, 
+.react-flow__node textarea {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Melhorar a aparência dos inputs quando focados */
+.react-flow__node input:focus,
+.react-flow__node textarea:focus {
+  outline: 2px solid #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Melhorar a aparência das conexões */
+.react-flow__edge-path {
+  stroke-width: 2px !important;
+  stroke: #3b82f6 !important;
+}
+
+/* Melhorar a aparência das conexões ao passar o mouse */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3px !important;
+  stroke: #2563eb !important;
+}
+
+/* Melhorar a aparência das conexões selecionadas */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3px !important;
+  stroke: #2563eb !important;
+}
+
+/* Corrigir problemas de arrasto e conexão */
+.react-flow__handle {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: all !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Animação para o botão de modo de conexão ativo */
+.connection-mode-btn.active {
+  animation: pulse-btn 1.5s infinite ease-in-out;
+}
+
+/* Animação de pulso para o botão */
+@keyframes pulse-btn {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 2px 12px rgba(37, 99, 235, 0.7);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5);
+  }
+}
+
+/* Animação de pulso suave para handles */
+@keyframes gentle-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+  }
+  70% {
+    transform: scale(1.3);
+    box-shadow: 0 0 0 5px rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+/* Tooltip de ajuda para conexão */
+.connection-tooltip {
+  position: fixed;
+  background-color: rgba(37, 99, 235, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 10000;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  max-width: 250px;
+  text-align: center;
+}
+
+/* Estilo para os handles de destino em potencial */
+.react-flow__handle.potential-target {
+  opacity: 1 !important;
+  background-color: #60a5fa !important;
+  transform: scale(1.5) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3) !important;
+  z-index: 1000 !important;
+}
+
+/* Garantir que as conexões sejam visíveis */
+.react-flow__edge {
+  pointer-events: all !important;
+  z-index: 5 !important;
+}
+
+/* Melhorar a aparência das conexões em andamento */
+.react-flow__connection-path {
+  stroke: #3b82f6 !important;
+  stroke-width: 3px !important;
+}
+
+/* Garantir que o painel de fundo não interfira nas conexões */
+.react-flow__pane {
+  pointer-events: all !important;
+}
+
+/* Destacar conexões ao passar o mouse */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3px !important;
+  stroke: #2563eb !important;
+}
+
+/* Melhorar a seleção de texto */
+.react-flow__node input::selection,
+.react-flow__node textarea::selection {
+  background-color: #93c5fd !important;
+}
+
+/* Estilo para o nó que está sendo conectado */
+.node-connecting {
+  box-shadow: 0 0 0 3px #3b82f6 !important;
+  transform: scale(1.02) !important;
+  transition: all 0.2s ease !important;
+  z-index: 10 !important;
+}
+
+/* Estilo para os nós que são possíveis alvos de conexão */
+.node-potential-target {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Esconder os handles para simplificar a interface */
+.react-flow__handle {
+  opacity: 0.2 !important;
+}
+
+/* Mostrar handles quando necessário */
+.react-flow__node:hover .react-flow__handle,
+.node-connecting .react-flow__handle,
+.node-potential-target .react-flow__handle {
+  opacity: 1 !important;
+}
+
+/* Estilo para o botão de modo de conexão */
+.connection-mode-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.connection-mode-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* Feedback visual quando em modo de conexão */
+.connection-mode-active .react-flow__renderer {
+  background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* Tooltip de ajuda para conexão */
+.connection-tooltip {
+  position: fixed;
+  background-color: rgba(37, 99, 235, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 10000;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  max-width: 250px;
+  text-align: center;
+}
+
+.connection-mode-btn.active {
+  background-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5);
+}
