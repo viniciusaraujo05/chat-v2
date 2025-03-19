@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import axios from 'axios';
+import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'framer-motion';
 import ReactFlow, {
   useNodesState,
   useEdgesState,
@@ -146,9 +148,20 @@ const ChatBuilder: React.FC = () => {
 
     try {
       let response;
+      
+      // Obtener el botón de guardar para el efecto de confeti localizado
+      const saveButton = document.querySelector('#save-flow-button');
+      const buttonX = saveButton ? (saveButton.getBoundingClientRect().right / window.innerWidth) - 0.05 : 0.9;
+      const buttonY = saveButton ? (saveButton.getBoundingClientRect().top / window.innerHeight) + 0.03 : 0.1;
+      
       if (flowId) {
         response = await axios.put(`/api/chat-flows/${flowId}`, flowData);
-        toast({ title: 'Fluxo Atualizado', description: 'Alterações salvas com sucesso!' });
+        // Lançar confeti localizado en el botón de guardar
+        launchConfetti(buttonX, buttonY);
+        // Mostrar notificación sutil
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 2000);
+        toast({ title: 'Fluxo Atualizado', description: 'Alterações salvas com sucesso! 👍' });
       } else {
         response = await axios.post('/api/chat-flows', flowData);
         // Garantir que o ID seja armazenado como string de um número
@@ -156,11 +169,15 @@ const ChatBuilder: React.FC = () => {
         if (newId && (typeof newId === 'number' || (typeof newId === 'string' && /^\d+$/.test(newId)))) {
           setFlowId(newId.toString());
           console.log('Fluxo criado com ID:', newId);
+          // Lanzar confeti localizado en el botón
+          launchConfetti(buttonX, buttonY);
+          setShowCelebration(true);
+          setTimeout(() => setShowCelebration(false), 2000);
         } else {
           console.error('ID inválido retornado pela API:', newId);
           setFlowId(null);
         }
-        toast({ title: 'Fluxo Criado', description: 'Novo fluxo salvo com sucesso!' });
+        toast({ title: 'Fluxo Criado', description: 'Novo fluxo salvo com sucesso! 🎉' });
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || error.response?.data?.errors?.name?.[0] || 'Erro ao salvar o fluxo.';
@@ -171,10 +188,9 @@ const ChatBuilder: React.FC = () => {
   }, [nodes, edges, flowId, flowName, flowDescription]);
 
   const loadFlow = useCallback(async (id: string | number) => {
-    const flowId = id.toString(); // Garante que o ID seja uma string
+    const flowId = id.toString();
     console.log('Tentando carregar fluxo com ID:', flowId, 'tipo:', typeof flowId);
     try {
-      // Verificar se temos um ID válido
       if (!flowId) {
         console.error('ID de fluxo inválido:', flowId);
         toast({ variant: 'destructive', title: 'Erro', description: 'ID de fluxo inválido' });
@@ -486,6 +502,23 @@ const ChatBuilder: React.FC = () => {
   const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
   const [availableFlows, setAvailableFlows] = useState<any[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  // Función para lanzar confeti sutil en el botón de guardar
+  const launchConfetti = (originX = 0.9, originY = 0.1) => {
+    console.log('Lançando confeti sutil!');
+    // Configuración de confeti sutil y localizado
+    confetti({
+      particleCount: 40,
+      spread: 50,
+      origin: { x: originX, y: originY },
+      colors: ['#4F46E5', '#0EA5E9', '#10B981'],
+      zIndex: 1000,
+      scalar: 0.7, // Partículas más pequeñas
+      gravity: 1, // Más gravedad para que caigan más rápido
+      disableForReducedMotion: true, // Accesibilidad
+    });
+  };
 
   // Carregar configuração do ChatFlow
   const loadConfig = useCallback(async () => {
@@ -641,6 +674,25 @@ const ChatBuilder: React.FC = () => {
       // Log apenas em ambiente de desenvolvimento
       if (process.env.NODE_ENV === 'development') {
         console.log('Alternando estado do builder para:', newState);
+      }
+      
+      // Si estamos activando el chat builder, mostramos un pequeño efecto visual
+      if (newState) {
+        // Lanzar confeti sutil en el switch de activación
+        const activateButton = document.querySelector('#activate-chat-button');
+        if (activateButton) {
+          const rect = activateButton.getBoundingClientRect();
+          const x = (rect.left + 10) / window.innerWidth;
+          const y = (rect.top + 10) / window.innerHeight;
+          launchConfetti(x, y);
+        } else {
+          // Si no encontramos el botón, usamos una posición por defecto
+          launchConfetti(0.2, 0.1);
+        }
+        
+        // Establecemos el estado de celebración para mostrar el toast animado
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 2000);
       }
 
       // Simplificar o payload para evitar erros de tipo
@@ -799,9 +851,12 @@ const ChatBuilder: React.FC = () => {
   // Carrega os fluxos disponíveis quando a página é aberta
   useEffect(() => {
     const loadInitialData = async () => {
-      console.log('Iniciando carregamento de dados iniciais...');
-      // Establecer explícitamente que estamos cargando
+      // Garantir que o estado de loading seja definido imediatamente
       setIsInitialLoading(true);
+      
+      // Pequeno atraso para garantir que a tela de loading seja renderizada
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       try {
         // Primeiro, carregar a configuração do ChatFlow
         await loadConfig();
@@ -896,11 +951,8 @@ const ChatBuilder: React.FC = () => {
         createNewFlow();
         setIsWelcomeDialogOpen(false);
       } finally {
-        // Añadir un pequeño retraso para asegurar que se ve la pantalla de carga
-        setTimeout(() => {
-          setIsInitialLoading(false);
-          console.log('Carga finalizada, ocultando pantalla de carga');
-        }, 800);
+        // Não desativamos o loading aqui - será desativado apenas quando os fluxos estiverem prontos
+        // O estado de loading será controlado nos useEffects específicos para cada operação
       }
     };
 
@@ -912,17 +964,43 @@ const ChatBuilder: React.FC = () => {
 
   return (
     <>
-      {/* Pantalla de carga mientras se verifica el estado del chat */}
+      {/* Tela de carregamento com prioridade máxima */}
       {isInitialLoading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" 
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background backdrop-blur-sm" 
              style={{ pointerEvents: 'all' }}>
           <div className="flex flex-col items-center space-y-4 p-8 bg-card rounded-lg shadow-xl border border-border animate-in fade-in-50 duration-300">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-lg font-medium text-foreground">Carregando configurações do chat...</p>
-            <p className="text-sm text-muted-foreground">Verificando status e fluxos disponíveis</p>
+            <div className="relative">
+              <Loader2 className="h-16 w-16 animate-spin text-primary" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-3 w-3 rounded-full bg-primary animate-pulse"></div>
+              </div>
+            </div>
+            <p className="text-xl font-medium text-foreground">Carregando Chat Builder</p>
+            <p className="text-sm text-muted-foreground">Preparando o ambiente de edição...</p>
           </div>
         </div>
       )}
+      
+      {/* Notificación flotante sutil cuando se guarda */}
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div 
+            className="fixed bottom-4 right-4 z-50 pointer-events-none"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div 
+              className="bg-card text-card-foreground border border-border px-4 py-2 rounded-md shadow-md"
+              animate={{ y: [0, -3, 0] }}
+              transition={{ duration: 0.5, repeat: 1 }}
+            >
+              <p className="text-sm font-medium">Salvo com sucesso!</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Diálogo de confirmação de exclusão */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -1017,21 +1095,6 @@ const ChatBuilder: React.FC = () => {
               >
                 Criar Novo Fluxo
               </Button>
-              {availableFlows.length > 0 && (
-                <Button
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  onClick={() => {
-                    console.log('Clicou em Carregar o Primeiro Fluxo');
-                    console.log('ID do primeiro fluxo:', availableFlows[0].id);
-                    if (availableFlows.length > 0) {
-                      loadFlow(availableFlows[0].id.toString()); // Converter para string para garantir
-                      setIsWelcomeDialogOpen(false);
-                    }
-                  }}
-                >
-                  Carregar o Primeiro Fluxo
-                </Button>
-              )}
             </div>
           </div>
         </DialogContent>
@@ -1104,6 +1167,22 @@ const ChatBuilder: React.FC = () => {
             width: 12px !important;
             height: 12px !important;
             transition: transform 0.2s;
+          }
+          /* Animación sutil de hover en los nodos */
+          .react-flow__node:hover {
+            filter: brightness(1.05);
+            transform: translateY(-2px);
+            transition: all 0.2s ease;
+          }
+          /* Animación sutil para nodos cuando se conectan */
+          .react-flow__edge-path {
+            stroke-dasharray: 5;
+            animation: flowPath 10s linear infinite;
+          }
+          @keyframes flowPath {
+            to {
+              stroke-dashoffset: -100;
+            }
           }
           .react-flow__handle:hover {
             transform: scale(1.5);

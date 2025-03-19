@@ -89,19 +89,6 @@ const WelcomeDialog: React.FC<WelcomeDialogProps> = ({
             >
               Criar Novo Fluxo
             </Button>
-            {availableFlows.length > 0 && (
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => {
-                  if (availableFlows.length > 0) {
-                    loadFlow(availableFlows[0].id.toString());
-                    setIsOpen(false);
-                  }
-                }}
-              >
-                Carregar o Primeiro Fluxo
-              </Button>
-            )}
           </div>
         </div>
       </DialogContent>

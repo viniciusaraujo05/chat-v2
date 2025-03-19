@@ -733,21 +733,6 @@ const ChatBuilder: React.FC = () => {
             >
               Criar Novo Fluxo
             </Button>
-            {availableFlows.length > 0 && (
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => {
-                  console.log('Clicou em Carregar o Primeiro Fluxo');
-                  console.log('ID do primeiro fluxo:', availableFlows[0].id);
-                  if (availableFlows.length > 0) {
-                    loadFlow(availableFlows[0].id.toString()); // Converter para string para garantir
-                    setIsWelcomeDialogOpen(false);
-                  }
-                }}
-              >
-                Carregar o Primeiro Fluxo
-              </Button>
-            )}
           </div>
         </div>
       </DialogContent>
