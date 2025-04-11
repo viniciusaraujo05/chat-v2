@@ -11,7 +11,7 @@ class CreateChatFlowAction
     public function __invoke(array $data): ChatFlow
     {
         try {
-            $userId = Auth::id() ?? 1;
+            $userId = Auth::id();
             $chatFlow = ChatFlow::create([
                 'user_id' => $userId,
                 'name' => $data['name'],

@@ -33,6 +33,10 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $token = $request->user()->createToken('api-token')->plainTextToken;
+        logger($token);
+        $request->session()->put('sanctum_token', $token);
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

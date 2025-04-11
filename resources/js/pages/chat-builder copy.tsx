@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import axios from 'axios';
-import ReactFlow, {
-  Controls,
-  Background,
-  MiniMap,
+import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'framer-motion';
+import { usePage } from '@inertiajs/react';
+import {
   useNodesState,
   useEdgesState,
   Node,
@@ -11,190 +11,36 @@ import ReactFlow, {
   Connection,
   NodeTypes,
   ReactFlowProvider,
-  Handle,
-  Position,
-  MarkerType,
+  MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Menu, X, Loader2, Trash2, Plus, Move, MenuIcon } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
+import { Loader2 } from 'lucide-react';
+
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-  SheetClose,
-} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
 
-interface NodeData {
-  label: string;
-  message?: string;
-  choices?: string[];
-  sequence: number;
-}
+// Import components
+import BotMessageNode from '@/components/chat-builder/nodes/BotMessageNode';
+import ChoicesNode from '@/components/chat-builder/nodes/ChoicesNode';
+import AttendantNode from '@/components/chat-builder/nodes/AttendantNode';
+import Sidebar from '@/components/chat-builder/sidebar/Sidebar';
+import MobileSidebar from '@/components/chat-builder/sidebar/MobileSidebar';
+import HeaderControls from '@/components/chat-builder/controls/HeaderControls';
 
-const BotMessageNode = React.memo(({ id, data, selected, onChange, onDelete }: any) => {
-  const handleInputInteraction = (e: React.MouseEvent) => e.stopPropagation();
+import FlowArea from '@/components/chat-builder/flow/FlowArea';
 
-  return (
-    <Card className={`w-full md:w-72 border ${selected ? 'ring-2 ring-blue-400' : 'border-blue-600'} bg-background text-foreground shadow-md`}>
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-blue-400 border-2 border-blue-600" />
-      <CardHeader className="p-3 rounded-t-md">
-        <CardTitle className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={data.sequence}
-            onChange={(e) => onChange(id, { sequence: parseInt(e.target.value) || 0 })}
-            className="w-16 text-center bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          <Input
-            value={data.label}
-            onChange={(e) => onChange(id, { label: e.target.value })}
-            placeholder="Título"
-            className="flex-1 bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          {selected && (
-            <Button variant="destructive" size="icon" onClick={() => onDelete(id)}>
-              X
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3">
-        <Textarea
-          value={data.message || ''}
-          onChange={(e) => onChange(id, { message: e.target.value })}
-          placeholder="Mensagem do Bot"
-          className="w-full min-h-[100px] bg-muted border-input text-foreground"
-          onClick={handleInputInteraction}
-        />
-      </CardContent>
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-blue-400 border-2 border-blue-600" />
-    </Card>
-  );
-});
-
-const ChoicesNode = React.memo(({ id, data, selected, onChange, onDelete }: any) => {
-  const handleInputInteraction = (e: React.MouseEvent) => e.stopPropagation();
-
-  const addChoice = () => onChange(id, { choices: [...(data.choices || []), `Opção ${(data.choices?.length || 0) + 1}`] });
-  const updateChoice = (index: number, value: string) => {
-    const newChoices = [...(data.choices || [])];
-    newChoices[index] = value;
-    onChange(id, { choices: newChoices });
-  };
-  const removeChoice = (index: number) => onChange(id, { choices: data.choices.filter((_: any, i: number) => i !== index) });
-
-  return (
-    <Card className={`w-full md:w-72 border ${selected ? 'ring-2 ring-green-400' : 'border-green-600'} bg-background text-foreground shadow-md`}>
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-green-400 border-2 border-green-600" />
-      <CardHeader className="p-3 rounded-t-md">
-        <CardTitle className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={data.sequence}
-            onChange={(e) => onChange(id, { sequence: parseInt(e.target.value) || 0 })}
-            className="w-16 text-center bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          <Input
-            value={data.label}
-            onChange={(e) => onChange(id, { label: e.target.value })}
-            placeholder="Título"
-            className="flex-1 bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          {selected && (
-            <Button variant="destructive" size="icon" onClick={() => onDelete(id)}>
-              X
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3">
-        <Label className="text-muted-foreground">Escolhas:</Label>
-        {(data.choices || []).map((choice: string, index: number) => (
-          <div key={index} className="flex items-center gap-2 mb-2 relative">
-            <Input
-              value={choice}
-              onChange={(e) => updateChoice(index, e.target.value)}
-              className="flex-1 bg-muted border-input text-foreground"
-              onClick={handleInputInteraction}
-            />
-            <Button variant="destructive" size="icon" onClick={() => removeChoice(index)}>
-              X
-            </Button>
-            <Handle
-              type="source"
-              position={Position.Right}
-              id={`choice-${index}`}
-              className="w-3 h-3 bg-green-400 border-2 border-green-600 absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2"
-            />
-          </div>
-        ))}
-        <Button variant="outline" onClick={addChoice} className="w-full mt-2">
-          + Adicionar Escolha
-        </Button>
-      </CardContent>
-    </Card>
-  );
-});
-
-const AttendantNode = React.memo(({ id, data, selected, onChange, onDelete }: any) => {
-  const handleInputInteraction = (e: React.MouseEvent) => e.stopPropagation();
-
-  return (
-    <Card className={`w-full md:w-72 border ${selected ? 'ring-2 ring-purple-400' : 'border-purple-600'} bg-background text-foreground shadow-md`}>
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-purple-400 border-2 border-purple-600" />
-      <CardHeader className="p-3 rounded-t-md">
-        <CardTitle className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={data.sequence}
-            onChange={(e) => onChange(id, { sequence: parseInt(e.target.value) || 0 })}
-            className="w-16 text-center bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          <Input
-            value={data.label}
-            onChange={(e) => onChange(id, { label: e.target.value })}
-            placeholder="Título"
-            className="flex-1 bg-muted border-input text-foreground"
-            onClick={handleInputInteraction}
-          />
-          {selected && (
-            <Button variant="destructive" size="icon" onClick={() => onDelete(id)}>
-              X
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3 text-muted-foreground">
-        Inicia o chat com um atendente humano.
-      </CardContent>
-    </Card>
-  );
-});
+// Import types and services
+import { NodeData, ChatFlowConfig } from '@/components/chat-builder/types';
 
 const ChatBuilder: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
@@ -207,6 +53,10 @@ const ChatBuilder: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [flowToDelete, setFlowToDelete] = useState<string | null>(null);
+  const [flowConfig, setFlowConfig] = useState<ChatFlowConfig>({ is_active: false, start_flow: null });
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [markAsStartFlow, setMarkAsStartFlow] = useState(false);
+  const { auth } = usePage().props;
 
   const addNode = useCallback((type: 'botMessage' | 'choices' | 'attendant') => {
     const maxSequence = nodes.length ? Math.max(...nodes.map(n => n.data.sequence)) : 0;
@@ -243,13 +93,13 @@ const ChatBuilder: React.FC = () => {
 
   const onConnect = useCallback((params: Connection) => {
     const sourceNode = nodes.find(n => n.id === params.source);
-    
+
     // Garantir que source e target existam e sejam strings
     if (!params.source || !params.target) {
       console.error('Source ou target inválidos:', params);
       return;
     }
-    
+
     const edge: Edge = {
       id: `e-${params.source}-${params.target}-${Date.now()}`,
       source: params.source, // String não nula
@@ -283,13 +133,34 @@ const ChatBuilder: React.FC = () => {
 
     try {
       let response;
+      
+      // Obtener el botón de guardar para el efecto de confeti localizado
+      const saveButton = document.querySelector('#save-flow-button');
+      const buttonX = saveButton ? (saveButton.getBoundingClientRect().right / window.innerWidth) - 0.05 : 0.9;
+      const buttonY = saveButton ? (saveButton.getBoundingClientRect().top / window.innerHeight) + 0.03 : 0.1;
+      
       if (flowId) {
-        response = await axios.put(`/api/chat-flows/${flowId}`, flowData);
-        toast({ title: 'Fluxo Atualizado', description: 'Alterações salvas com sucesso!' });
+        response = await axios.put(`/api/chat-flows/${flowId}`, flowData, { headers: { Authorization: `Bearer ${auth.token}` } });
+        launchConfetti(buttonX, buttonY);
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 2000);
+        toast({ title: 'Fluxo Atualizado', description: 'Alterações salvas com sucesso! 👍' });
       } else {
         response = await axios.post('/api/chat-flows', flowData);
-        setFlowId(response.data.data.id);
-        toast({ title: 'Fluxo Criado', description: 'Novo fluxo salvo com sucesso!' });
+
+        const newId = response.data.data.id;
+        if (newId && (typeof newId === 'number' || (typeof newId === 'string' && /^\d+$/.test(newId)))) {
+          setFlowId(newId.toString());
+          console.log('Fluxo criado com ID:', newId);
+          // Lanzar confeti localizado en el botón
+          launchConfetti(buttonX, buttonY);
+          setShowCelebration(true);
+          setTimeout(() => setShowCelebration(false), 2000);
+        } else {
+          console.error('ID inválido retornado pela API:', newId);
+          setFlowId(null);
+        }
+        toast({ title: 'Fluxo Criado', description: 'Novo fluxo salvo com sucesso! 🎉' });
       }
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || error.response?.data?.errors?.name?.[0] || 'Erro ao salvar o fluxo.';
@@ -300,24 +171,19 @@ const ChatBuilder: React.FC = () => {
   }, [nodes, edges, flowId, flowName, flowDescription]);
 
   const loadFlow = useCallback(async (id: string | number) => {
-    const flowId = id.toString(); // Garante que o ID seja uma string
+    const flowId = id.toString();
     console.log('Tentando carregar fluxo com ID:', flowId, 'tipo:', typeof flowId);
     try {
-      // Verificar se temos um ID válido
       if (!flowId) {
         console.error('ID de fluxo inválido:', flowId);
         toast({ variant: 'destructive', title: 'Erro', description: 'ID de fluxo inválido' });
         return;
       }
-      
-      console.log(`Fazendo requisição para: /api/chat-flows/${flowId}`);
-      const response = await axios.get(`/api/chat-flows/${flowId}`);
-      console.log('Resposta da API completa:', response);
-      console.log('Status da resposta:', response.status);
-      console.log('Dados da resposta:', response.data);
-      
+
+      const response = await axios.get(`/api/chat-flows/${flowId}`, { headers: { Authorization: `Bearer ${auth.token}` } });
+
       let flowData;
-      
+
       // Verificar a estrutura da resposta e extrair os dados corretamente
       if (response.data && response.data.data) {
         // Nova estrutura: dados dentro de response.data.data
@@ -330,74 +196,117 @@ const ChatBuilder: React.FC = () => {
         toast({ variant: 'destructive', title: 'Erro no Formato', description: 'Formato de resposta inesperado' });
         return;
       }
-      
+
       console.log('Flow data extraído:', flowData);
-      
+
       if (!flowData) {
         console.error('Nenhum dado de fluxo recebido para o ID:', flowId);
         toast({ variant: 'destructive', title: 'Erro ao Carregar', description: 'Nenhum dado de fluxo encontrado' });
         return;
       }
-      
+
       if (!flowData.id || !flowData.name) {
         console.error('Dados de fluxo incompletos:', flowData);
         toast({ variant: 'destructive', title: 'Dados Incompletos', description: 'Os dados do fluxo estão incompletos' });
         return;
       }
+
+      // Limpar o canvas atual antes de carregar o novo fluxo
+      setNodes([]);
+      setEdges([]);
       
+      // Atualizar informações básicas do fluxo
+      setFlowName(flowData.name);
+      setFlowDescription(flowData.description || '');
+      setFlowId(flowData.id);
+
       // Lidar com flow_data como string ou como objeto
       let parsedFlowData;
       try {
         if (!flowData.flow_data) {
           console.error('flow_data está vazio ou não existe');
-          parsedFlowData = { nodes: [], edges: [] };
           toast({ variant: 'default', title: 'Fluxo Vazio', description: 'O fluxo não contém dados estruturados' });
+          return;
+        } 
+        
+        console.log('Tipo do flow_data:', typeof flowData.flow_data);
+
+        if (typeof flowData.flow_data === 'string') {
+          console.log('flow_data é uma string, tentando fazer parse JSON');
+          parsedFlowData = JSON.parse(flowData.flow_data);
         } else {
-          console.log('Tipo do flow_data:', typeof flowData.flow_data);
-          
-          if (typeof flowData.flow_data === 'string') {
-            console.log('flow_data é uma string, tentando fazer parse JSON');
-            parsedFlowData = JSON.parse(flowData.flow_data);
-          } else {
-            console.log('flow_data já é um objeto');
-            parsedFlowData = flowData.flow_data;
-          }
-          
-          // Verificar estrutura do parsedFlowData
-          if (!parsedFlowData.nodes || !Array.isArray(parsedFlowData.nodes)) {
-            console.error('nodes inválidos em parsedFlowData');
-            parsedFlowData.nodes = [];
-          }
-          
-          if (!parsedFlowData.edges || !Array.isArray(parsedFlowData.edges)) {
-            console.error('edges inválidos em parsedFlowData');
-            parsedFlowData.edges = [];
-          }
+          console.log('flow_data já é um objeto');
+          parsedFlowData = flowData.flow_data;
+        }
+
+        // Verificar e formatar nós para ReactFlow
+        if (!parsedFlowData.nodes || !Array.isArray(parsedFlowData.nodes)) {
+          console.error('nodes inválidos em parsedFlowData');
+          parsedFlowData.nodes = [];
+        } else {
+          // Garantir que todos os nós tenham o tipo correto definido
+          parsedFlowData.nodes = parsedFlowData.nodes.map((node: any) => {
+            // Se o nó não tiver tipo, tente determiná-lo com base em sua estrutura
+            if (!node.type && node.data) {
+              if (node.data.choices) {
+                node.type = 'choices';
+              } else if (node.data.message) {
+                node.type = 'botMessage';
+              } else {
+                node.type = 'attendant';
+              }
+              console.log(`Tipo determinado para nó ${node.id}: ${node.type}`);
+            }
+            return node;
+          });
+        }
+
+        // Verificar e formatar arestas para ReactFlow
+        if (!parsedFlowData.edges || !Array.isArray(parsedFlowData.edges)) {
+          console.error('edges inválidos em parsedFlowData');
+          parsedFlowData.edges = [];
+        } else {
+          // Garantir que todas as arestas tenham propriedades válidas
+          parsedFlowData.edges = parsedFlowData.edges.map((edge: any) => {
+            return {
+              ...edge,
+              type: edge.type || 'smoothstep',
+              animated: true,
+              style: edge.style || { stroke: '#3b82f6', strokeWidth: 2 },
+              markerEnd: edge.markerEnd || { type: MarkerType.ArrowClosed, color: '#3b82f6' }
+            };
+          });
         }
       } catch (parseError) {
         console.error('Erro ao analisar flow_data:', parseError);
         parsedFlowData = { nodes: [], edges: [] };
         toast({ variant: 'destructive', title: 'Erro de Parse', description: 'Não foi possível analisar os dados do fluxo' });
+        return;
       }
-      
+
       console.log('Flow data parseado:', parsedFlowData);
-      console.log('Nodes:', parsedFlowData?.nodes);
-      console.log('Edges:', parsedFlowData?.edges);
-      
-      // Limpar o canvas atual antes de carregar o novo fluxo
-      setNodes([]);
-      setEdges([]);
-      
-      // Pequeno timeout para garantir que o canvas foi limpo
+      console.log('Nodes preparados:', parsedFlowData?.nodes);
+      console.log('Edges preparados:', parsedFlowData?.edges);
+
+      // Usar um timeout para garantir que o processo de renderização ocorra corretamente
       setTimeout(() => {
-        setNodes(parsedFlowData?.nodes || []);
-        setEdges(parsedFlowData?.edges || []);
-        setFlowName(flowData.name);
-        setFlowDescription(flowData.description || '');
-        setFlowId(flowData.id);
-        toast({ title: 'Fluxo Carregado', description: 'Fluxo carregado com sucesso!' });
-      }, 100);
-      
+        try {
+          // Aplicar nós e arestas formatados no ReactFlow
+          setNodes(parsedFlowData?.nodes || []);
+          setEdges(parsedFlowData?.edges || []);
+          toast({ title: 'Fluxo Carregado', description: 'Fluxo carregado com sucesso!' });
+          
+          // Forçar o ReactFlow a se ajustar à visualização após o carregamento
+          setTimeout(() => {
+            // Despache um evento de redimensionamento para forçar o ReactFlow a recalcular
+            window.dispatchEvent(new Event('resize'));
+          }, 300);
+        } catch (renderError) {
+          console.error('Erro ao renderizar fluxo:', renderError);
+          toast({ variant: 'destructive', title: 'Erro de Renderização', description: 'Não foi possível renderizar o fluxo no editor' });
+        }
+      }, 200);
+
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || 'Erro ao carregar o fluxo.';
       toast({ variant: 'destructive', title: 'Erro ao Carregar', description: errorMsg });
@@ -423,14 +332,12 @@ const ChatBuilder: React.FC = () => {
   // Função para excluir um fluxo pelo ID
   const deleteFlow = useCallback(async () => {
     if (!flowToDelete) return;
-    
+
     try {
-      const response = await axios.delete(`/api/chat-flows/${flowToDelete}`);
+      const response = await axios.delete(`/api/chat-flows/${flowToDelete}`, { headers: { Authorization: `Bearer ${auth.token}` } });
       if (response.data.success) {
         toast({ title: 'Fluxo Excluído', description: 'O fluxo foi excluído com sucesso!' });
-        // Sempre limpar o editor após excluir um fluxo
         createNewFlow();
-        // Recarregar a lista de fluxos após excluir com sucesso
         setTimeout(() => fetchFlows(), 500);
       } else {
         toast({ variant: 'destructive', title: 'Erro ao Excluir', description: 'Erro ao excluir o fluxo.' });
@@ -447,9 +354,9 @@ const ChatBuilder: React.FC = () => {
   const fetchFlows = useCallback(async () => {
     setIsFetchingFlows(true);
     try {
-      const response = await axios.get('/api/chat-flows');
-      console.log('Resposta ao buscar fluxos:', response.data);
-      // Verificar se os dados estão disponíveis no formato esperado
+
+      const response = await axios.get('/api/chat-flows', { headers: { Authorization: `Bearer ${auth.token}` } });
+
       let flows = [];
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
         // Novo formato de resposta da API
@@ -458,7 +365,7 @@ const ChatBuilder: React.FC = () => {
         // Formato antigo
         flows = response.data;
       }
-      
+
       if (flows.length > 0) {
         // Usar a variável flows que já foi definida acima
         const modal = document.createElement('div');
@@ -494,13 +401,13 @@ const ChatBuilder: React.FC = () => {
         document.body.appendChild(modal);
 
         modal.querySelector('#close-modal')?.addEventListener('click', () => document.body.removeChild(modal));
-        
+
         // Adicionar evento de clique para carregar fluxo
         modal.querySelectorAll('.flow-item').forEach(item => {
           item.addEventListener('click', (e) => {
             // Ignorar cliques no botão de excluir
             if ((e.target as Element).closest('.flow-delete-btn')) return;
-            
+
             const flowId = item.getAttribute('data-id');
             if (flowId) {
               loadFlow(flowId);
@@ -508,7 +415,7 @@ const ChatBuilder: React.FC = () => {
             }
           });
         });
-        
+
         // Adicionar evento de clique para excluir fluxo
         modal.querySelectorAll('.flow-delete-btn').forEach(button => {
           button.addEventListener('click', (e) => {
@@ -533,6 +440,9 @@ const ChatBuilder: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Desabilitar atalhos de teclado quando o builder está desativado
+      if (!isBuilderEnabled) return;
+
       if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) return;
       if (e.key === 'Delete' && selectedNodeId) deleteNode(selectedNodeId);
       if (e.key === '1' || e.key === 'b') {
@@ -560,442 +470,664 @@ const ChatBuilder: React.FC = () => {
 
   // Estado para controlar a visibilidade do menu lateral em dispositivos móveis
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
+  // Estado para controlar se o Chat Builder está ativo
+  const [isBuilderEnabled, setIsBuilderEnabled] = useState(false);
+
   // Detecta se a tela é pequena (mobile)
   const [isMobile, setIsMobile] = useState(false);
-  const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(true);
+  const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
   const [availableFlows, setAvailableFlows] = useState<any[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  // Función para lanzar confeti sutil en el botón de guardar
+  const launchConfetti = (originX = 0.9, originY = 0.1) => {
+    console.log('Lançando confeti sutil!');
+    // Configuración de confeti sutil y localizado
+    confetti({
+      particleCount: 40,
+      spread: 50,
+      origin: { x: originX, y: originY },
+      colors: ['#4F46E5', '#0EA5E9', '#10B981'],
+      zIndex: 1000,
+      scalar: 0.7,
+      gravity: 1,
+      disableForReducedMotion: true,
+    });
+  };
+
+  // Carregar configuração do ChatFlow
+  const loadConfig = useCallback(async () => {
+    try {
+      setLoadingConfig(true);
+
+      console.log('Usuário autenticado:', auth);
+
+      const cachedConfig = localStorage.getItem('chatFlowConfig');
+      const cacheTimestamp = localStorage.getItem('chatFlowConfigTimestamp');
+      const cacheExpiration = 30 * 60 * 1000; // 30 minutos em milissegundos
+      
+      if (cachedConfig && cacheTimestamp) {
+        const parsedConfig = JSON.parse(cachedConfig);
+        const timestamp = parseInt(cacheTimestamp);
+        const now = Date.now();
+        
+        if (now - timestamp < cacheExpiration) {
+          console.log('Usando configuração do cache:', parsedConfig);
+          setFlowConfig(parsedConfig);
+          setIsBuilderEnabled(Boolean(parsedConfig.is_active));
+          setLoadingConfig(false);
+          setIsInitialLoading(false);
+          return;
+        } else {
+          localStorage.removeItem('chatFlowConfig');
+          localStorage.removeItem('chatFlowConfigTimestamp');
+
+          console.log('Cache expirado, buscando da API');
+        }
+      }
+      
+      const response = await axios.get('/api/chat-flow-config', { headers: { Authorization: `Bearer ${auth.token}` } });
+      console.log('Resposta da API de configuração:', response.data);
+
+      if (response.data.success) {
+        if (response.data.data && Object.keys(response.data.data).length > 0) {
+          const config = response.data.data;
+          console.log('Configuração carregada:', config);
+          setFlowConfig(config);
+          setIsBuilderEnabled(Boolean(config.is_active));
+          
+          localStorage.setItem('chatFlowConfig', JSON.stringify(config));
+          localStorage.setItem('chatFlowConfigTimestamp', Date.now().toString());
+        } else {
+          const defaultConfig = {
+            is_active: false,
+            start_flow: null
+          };
+
+          const createResponse = await axios.put('/api/chat-flow-config', defaultConfig, { headers: { Authorization: `Bearer ${auth.token}` } });
+          if (createResponse.data.success) {
+            setFlowConfig(createResponse.data.data);
+            setIsBuilderEnabled(false);
+            
+            localStorage.setItem('chatFlowConfig', JSON.stringify(createResponse.data.data));
+            localStorage.setItem('chatFlowConfigTimestamp', Date.now().toString());
+
+            toast({
+              title: 'Configuração Criada',
+              description: 'Configuração inicial do Chat Flow criada com sucesso.'
+            });
+          }
+        }
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível carregar a configuração do Chat Flow.'
+      });
+    } finally {
+      setLoadingConfig(false);
+      setIsInitialLoading(false);
+    }
+  }, []);
+
+  // Atualizar a configuração do ChatFlow
+  const updateConfig = useCallback(async (newConfig: Partial<ChatFlowConfig>) => {
+    try {
+      // Garantir que is_active seja explicitamente boolean se estiver presente
+      const configToSend = { ...flowConfig, ...newConfig };
+
+      // Converter explicitamente para boolean caso seja necessário
+      if ('is_active' in configToSend) {
+        configToSend.is_active = Boolean(configToSend.is_active);
+      }
+      
+      // Garantir que start_flow seja um número válido ou null
+      if ('start_flow' in configToSend) {
+        const rawValue = configToSend.start_flow;
+        if (rawValue === null || rawValue === undefined) {
+          configToSend.start_flow = null;
+        } else if (typeof rawValue === 'number') {
+          configToSend.start_flow = rawValue;
+        } else if (typeof rawValue === 'string' && /^\d+$/.test(rawValue)) {
+          configToSend.start_flow = parseInt(rawValue, 10);
+        }
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Enviando configuração para API:', configToSend);
+      }
+
+      const response = await axios.put('/api/chat-flow-config', configToSend, { headers: { Authorization: `Bearer ${auth.token}` } });
+
+      if (response.data.success) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Configuração atualizada com sucesso:', response.data.data);
+        }
+        setFlowConfig(response.data.data);
+        
+        // Atualizar o cache
+        localStorage.setItem('chatFlowConfig', JSON.stringify(response.data.data));
+        localStorage.setItem('chatFlowConfigTimestamp', Date.now().toString());
+        
+        toast({
+          title: 'Configuração Atualizada',
+          description: 'As configurações foram salvas com sucesso.'
+        });
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Erro ao atualizar configuração:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível salvar as configurações.'
+      });
+      return null;
+    }
+    // Remover flowConfig das dependências para evitar loop infinito
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Alternar o estado de ativação do ChatFlow
+  const toggleChatFlowActive = useCallback(async () => {
+    const newState = !isBuilderEnabled;
+    setIsBuilderEnabled(newState);
+
+    try {
+      // Log apenas em ambiente de desenvolvimento
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Alternando estado do builder para:', newState);
+      }
+      
+      // Si estamos activando el chat builder, mostramos un pequeño efecto visual
+      if (newState) {
+        // Lanzar confeti sutil en el switch de activación
+        const activateButton = document.querySelector('#activate-chat-button');
+        if (activateButton) {
+          const rect = activateButton.getBoundingClientRect();
+          const x = (rect.left + 10) / window.innerWidth;
+          const y = (rect.top + 10) / window.innerHeight;
+          launchConfetti(x, y);
+        } else {
+          // Si no encontramos el botón, usamos una posición por defecto
+          launchConfetti(0.2, 0.1);
+        }
+        
+        // Establecemos el estado de celebración para mostrar el toast animado
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 2000);
+      }
+
+      // Simplificar o payload para evitar erros de tipo
+      const payload: {
+        is_active: boolean;
+        start_flow?: number | null;
+      } = {
+        is_active: Boolean(newState)
+      };
+      
+      // Só incluir start_flow se for um número válido
+      const currentStartFlow = flowConfig.start_flow;
+      if (currentStartFlow !== null && currentStartFlow !== undefined) {
+        if (typeof currentStartFlow === 'number') {
+          payload.start_flow = currentStartFlow;
+        } else if (typeof currentStartFlow === 'string' && /^\d+$/.test(currentStartFlow)) {
+          payload.start_flow = parseInt(currentStartFlow, 10);
+        }
+        // Se não for válido, não incluir no payload
+      }
+
+      // Configurar indicador de loading
+      const loadingToast = toast({
+        title: 'Atualizando...',
+        description: <div className="flex items-center"><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando configuração</div>,
+      });
+
+      const response = await axios.put('/api/chat-flow-config', payload, { headers: { Authorization: `Bearer ${auth.token}` } });
+
+      if (response.data.success) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Estado do builder alternado com sucesso:', response.data.data);
+        }
+        setFlowConfig(response.data.data);
+        
+        // Atualizar o cache
+        localStorage.setItem('chatFlowConfig', JSON.stringify(response.data.data));
+        localStorage.setItem('chatFlowConfigTimestamp', Date.now().toString());
+        
+        toast({
+          title: newState ? 'Builder Ativado' : 'Builder Desativado',
+          description: newState ? 'O builder está ativo e pronto para uso.' : 'O builder foi desativado.'
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao alternar estado do builder:', error);
+      // Reverter o estado em caso de erro
+      setIsBuilderEnabled(!newState);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível alterar o estado do builder.'
+      });
+    }
+  }, [isBuilderEnabled]);
+
+  // Definir o fluxo atual como fluxo inicial
+  const setAsStartFlow = useCallback(async () => {
+    if (!flowId) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'É necessário salvar o fluxo antes de defini-lo como inicial.'
+      });
+      return;
+    }
+
+    try {
+      // Verificar se flowId é um número válido
+      if (!/^\d+$/.test(flowId)) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'ID do fluxo inválido. O ID deve ser um número.'
+        });
+        return;
+      }
+
+      console.log('Definindo como fluxo inicial:', flowId);
+      // Converter para número inteiro
+      const flowIdInt = parseInt(flowId, 10);
+      
+      if (isNaN(flowIdInt)) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'Não foi possível converter o ID para número.'
+        });
+        return;
+      }
+      
+      // Enviar apenas os dados necessários, com tipos corretos
+      const payload = {
+        is_active: flowConfig.is_active === true,
+        start_flow: flowIdInt
+      };
+      
+      console.log('Payload para API:', payload);
+
+      // Usar diretamente o payload simplificado
+      const response = await axios.put('/api/chat-flow-config', payload, { headers: { Authorization: `Bearer ${auth.token}` } });
+
+      if (response.data.success) {
+        console.log('Configuração atualizada com sucesso:', response.data.data);
+        setFlowConfig(response.data.data);
+        
+        // Atualizar o cache
+        localStorage.setItem('chatFlowConfig', JSON.stringify(response.data.data));
+        localStorage.setItem('chatFlowConfigTimestamp', Date.now().toString());
+        
+        toast({
+          title: 'Fluxo Inicial Definido',
+          description: 'Este fluxo será iniciado automaticamente.'
+        });
+      } else {
+        console.error('Erro na resposta da API:', response.data);
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'Não foi possível definir como fluxo inicial.'
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao definir fluxo inicial:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível definir como fluxo inicial.'
+      });
+    }
+  }, [flowId, flowConfig]);
+
   // Atualize o estado isMobile com base no tamanho da tela
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-  
-  // Carrega os fluxos disponíveis quando a página é aberta
+
+  useEffect(() => {
+    setIsBuilderEnabled(false);
+  }, []);
+
   useEffect(() => {
     const loadInitialData = async () => {
-      console.log('Iniciando carregamento de dados iniciais...');
+      setIsInitialLoading(true);
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       try {
-        const response = await axios.get('/api/chat-flows');
-        console.log('Resposta completa da API:', response.data);
-        
-        // Atualizado para o novo formato da API
+        await loadConfig();       
+        const currentConfig = await axios.get('/api/chat-flow-config', { headers: { Authorization: `Bearer ${auth.token}` } });
+        const config = currentConfig.data.data || { is_active: false, start_flow: null };
+        const response = await axios.get('/api/chat-flows', { headers: { Authorization: `Bearer ${auth.token}` } });
         const flows = response.data.data || [];
-        console.log('Fluxos disponíveis:', flows);
-        console.log('Número de fluxos encontrados:', flows.length);
-        
+
         setAvailableFlows(flows);
-        
-        // Verificar detalhes de cada fluxo para debug
-        flows.forEach((flow: any, index: number) => {
-          console.log(`Fluxo ${index + 1}:`, { 
-            id: flow.id, 
-            name: flow.name, 
-            has_flow_data: !!flow.flow_data,
-            flow_data_type: typeof flow.flow_data
+
+        if (process.env.NODE_ENV === 'development') {
+          flows.forEach((flow: any, index: number) => {
+            console.log(`Fluxo ${index + 1}:`, {
+              id: flow.id,
+              name: flow.name,
+              has_flow_data: !!flow.flow_data,
+              flow_data_type: typeof flow.flow_data
+            });
           });
-        });
-        
-        if (flows.length === 0) {
-          // Se não houver fluxos, não mostramos o diálogo e criamos um novo fluxo
-          console.log('Nenhum fluxo encontrado, criando um novo fluxo');
-          createNewFlow();
+        }
+
+        if (!config.is_active) {
           setIsWelcomeDialogOpen(false);
-        } else if (flows.length === 1) {
-          // Se houver apenas um fluxo, carregamos automaticamente
-          console.log('Um único fluxo encontrado, carregando automaticamente');
-          await loadFlow(flows[0].id);
-          setIsWelcomeDialogOpen(false);
+          
+          if (flows.length === 0) {
+            createNewFlow();
+          } else {
+            await loadFlow(flows[0].id);
+          }
         } else {
-          // Se houver múltiplos fluxos, mostramos o diálogo para o usuário escolher
-          console.log('Múltiplos fluxos encontrados, mostrando diálogo de seleção');
-          setIsWelcomeDialogOpen(true);
+          if (flows.length === 0) {
+            createNewFlow();
+            setIsWelcomeDialogOpen(false);
+          } else if (flows.length === 1) {
+            await loadFlow(flows[0].id);
+            setIsWelcomeDialogOpen(false);
+            createNewFlow();
+            setIsWelcomeDialogOpen(false);
+          } else if (flows.length === 1) {
+            await loadFlow(flows[0].id);
+            setIsWelcomeDialogOpen(false);
+          } else {
+            if (config.start_flow) {
+              const startFlow = flows.find((flow: { id: number; name: string }) => flow.id === config.start_flow);
+              if (startFlow) {
+                console.log('Carregando fluxo inicial configurado:', startFlow.name);
+                await loadFlow(startFlow.id);
+                setIsWelcomeDialogOpen(false);
+              } else {
+                setIsWelcomeDialogOpen(true);
+              }
+            } else {
+              setIsWelcomeDialogOpen(true);
+            }
+          }
         }
       } catch (error: unknown) {
         console.error('Erro ao carregar os fluxos iniciais:', error);
         if (error && typeof error === 'object' && 'response' in error && error.response) {
           const axiosError = error as { response: { data: any; status: number } };
-          console.error('Resposta de erro:', axiosError.response.data);
-          console.error('Status do erro:', axiosError.response.status);
         }
-        // Em caso de erro, criamos um novo fluxo
-        toast({ 
-          variant: 'destructive', 
-          title: 'Erro ao carregar fluxos', 
-          description: 'Criando um novo fluxo' 
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao carregar fluxos',
+          description: 'Criando um novo fluxo'
         });
         createNewFlow();
         setIsWelcomeDialogOpen(false);
-      } finally {
-        setIsInitialLoading(false);
       }
     };
-    
+
     loadInitialData();
-  }, [loadFlow, createNewFlow]);
-  
+  }, [loadFlow, createNewFlow, loadConfig]);
+
   return (
     <>
-    {/* Diálogo de confirmação de exclusão */}
-    <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-      <DialogContent className="bg-background border-border text-foreground max-w-md w-full">
-        <DialogHeader>
-          <DialogTitle>Confirmar Exclusão</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Tem certeza que deseja excluir este fluxo? Esta ação não pode ser desfeita.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-            Cancelar
-          </Button>
-          <Button variant="destructive" onClick={deleteFlow}>
-            Excluir
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-    
-    {/* Diálogo de boas-vindas com opções para carregar um fluxo existente ou criar um novo */}
-    <Dialog open={isWelcomeDialogOpen && !isInitialLoading} onOpenChange={(open) => {
-      if (!open) {
-        // Quando o usuário fecha o diálogo (clicando no X ou fora do modal)
-        setIsWelcomeDialogOpen(false);
-        
-        // Se não houver fluxos, crie um novo
-        if (availableFlows.length === 0) {
-          createNewFlow();
-        } else if (availableFlows.length > 0) {
-          // Se houver fluxos disponíveis, carregue o primeiro por padrão
-          loadFlow(availableFlows[0].id);
-        }
-      }
-    }}>
-      <DialogContent className="bg-background border-border text-foreground max-w-lg w-full">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Bem-vindo ao Chat Builder</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Selecione um fluxo existente para editar ou crie um novo fluxo.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="py-4 max-h-[50vh] overflow-y-auto">
-          {availableFlows.length > 0 ? (
-            <div className="space-y-3">
-              {availableFlows.map((flow) => (
-                <div 
-                  key={flow.id}
-                  className="p-3 border border-border rounded-md hover:bg-muted cursor-pointer transition-colors"
-                  onClick={() => {
-                    console.log('Clicou no fluxo:', flow.name);
-                    console.log('ID do fluxo selecionado:', flow.id);
-                    loadFlow(flow.id.toString()); // Converter para string para garantir
-                    setIsWelcomeDialogOpen(false);
-                  }}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">{flow.name}</h4>
-                      <p className="text-xs text-muted-foreground">
-                        {flow.description || 'Sem descrição'}
-                      </p>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(flow.updated_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
+      {/* Tela de carregamento com prioridade máxima */}
+      {isInitialLoading && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background backdrop-blur-sm" 
+             style={{ pointerEvents: 'all' }}>
+          <div className="flex flex-col items-center space-y-4 p-8 bg-card rounded-lg shadow-xl border border-border animate-in fade-in-50 duration-300">
+            <div className="relative">
+              <Loader2 className="h-16 w-16 animate-spin text-primary" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-3 w-3 rounded-full bg-primary animate-pulse"></div>
+              </div>
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Nenhum fluxo encontrado.</p>
-            </div>
-          )}
+            <p className="text-xl font-medium text-foreground">Carregando Chat Builder</p>
+            <p className="text-sm text-muted-foreground">Preparando o ambiente de edição...</p>
+          </div>
         </div>
-        
-        <div className="mt-4">
-          <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={() => {
-                createNewFlow();
-                setIsWelcomeDialogOpen(false);
-              }}
+      )}
+      
+      {/* Notificación flotante sutil cuando se guarda */}
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div 
+            className="fixed bottom-4 right-4 z-50 pointer-events-none"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div 
+              className="bg-card text-card-foreground border border-border px-4 py-2 rounded-md shadow-md"
+              animate={{ y: [0, -3, 0] }}
+              transition={{ duration: 0.5, repeat: 1 }}
             >
-              Criar Novo Fluxo
+              <p className="text-sm font-medium">Salvo com sucesso!</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Diálogo de confirmação de exclusão */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="bg-background border-border text-foreground max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Tem certeza que deseja excluir este fluxo? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancelar
             </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-    
-    <AppLayout>
-      <ReactFlowProvider>
-        <div className="relative h-screen bg-background text-foreground flex flex-col md:flex-row">
-          {/* Barra de navegação móvel */}
-          <div className="md:hidden flex items-center justify-between p-4 border-b border-border">
-            <h3 className="text-lg font-semibold">Chat Builder</h3>
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MenuIcon className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[80%] p-0 bg-background text-foreground">
-                <SheetHeader className="p-4 border-b border-border">
-                  <SheetTitle>Menu</SheetTitle>
-                </SheetHeader>
-                <div className="p-4 space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Elementos</h3>
-                    <div className="space-y-2">
-                      <Button 
-                        className="w-full bg-blue-600 hover:bg-blue-700" 
-                        onClick={() => {
-                          addNode('botMessage');
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        Mensagem do Bot
-                      </Button>
-                      <Button 
-                        className="w-full bg-green-600 hover:bg-green-700" 
-                        onClick={() => {
-                          addNode('choices');
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        Escolhas do Cliente
-                      </Button>
-                      <Button 
-                        className="w-full bg-purple-600 hover:bg-purple-700" 
-                        onClick={() => {
-                          addNode('attendant');
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        Atendente Humano
-                      </Button>
+            <Button variant="destructive" onClick={deleteFlow}>
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de boas-vindas com opções para carregar um fluxo existente ou criar um novo */}
+      <Dialog open={isWelcomeDialogOpen && !isInitialLoading} onOpenChange={(open) => {
+        if (!open) {
+          // Quando o usuário fecha o diálogo (clicando no X ou fora do modal)
+          setIsWelcomeDialogOpen(false);
+
+          // Ativar o builder ao selecionar um fluxo
+          setIsBuilderEnabled(true);
+
+          // Se não houver fluxos, crie um novo
+          if (availableFlows.length === 0) {
+            createNewFlow();
+          } else {
+            // Se houver fluxos disponíveis, carregue o primeiro por padrão
+            loadFlow(availableFlows[0].id);
+          }
+        }
+      }}>
+        <DialogContent className="bg-background border-border text-foreground max-w-lg w-full">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Bem-vindo ao Chat Builder</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Selecione um fluxo existente para editar ou crie um novo fluxo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 max-h-[50vh] overflow-y-auto">
+            {availableFlows.length > 0 ? (
+              <div className="space-y-3">
+                {availableFlows.map((flow) => (
+                  <div
+                    key={flow.id}
+                    className="p-3 border border-border rounded-md hover:bg-muted cursor-pointer transition-colors"
+                    onClick={() => {
+                      console.log('Clicou no fluxo:', flow.name);
+                      console.log('ID do fluxo selecionado:', flow.id);
+                      loadFlow(flow.id.toString()); // Converter para string para garantir
+                      setIsWelcomeDialogOpen(false);
+                    }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{flow.name}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          {flow.description || 'Sem descrição'}
+                        </p>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(flow.updated_at).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => {
-                        fetchFlows();
-                        setMobileMenuOpen(false);
-                      }}
-                      disabled={isFetchingFlows}
-                    >
-                      {isFetchingFlows && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {isFetchingFlows ? 'Carregando...' : 'Carregar Fluxo'}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full" 
-                      onClick={() => {
-                        createNewFlow();
-                        setMobileMenuOpen(false);
-                      }}
-                    >
-                      Novo Fluxo
-                    </Button>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Instruções</h4>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>1/B: Mensagem</li>
-                      <li>2/C: Escolhas</li>
-                      <li>3/A: Atendente</li>
-                      <li>Delete: Excluir</li>
-                      <li>Arraste para conectar</li>
-                    </ul>
-                  </div>
-                </div>
-                <SheetFooter className="p-4 border-t border-border">
-                  <SheetClose asChild>
-                    <Button variant="outline" className="w-full">Fechar</Button>
-                  </SheetClose>
-                </SheetFooter>
-              </SheetContent>
-            </Sheet>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Nenhum fluxo encontrado.</p>
+              </div>
+            )}
           </div>
-          
-          {/* Menu lateral para desktop */}
-          <div className="hidden md:block w-64 p-4 bg-background border-r border-border shadow-lg overflow-auto">
-            <h3 className="text-lg font-semibold mb-4">Elementos</h3>
-            <div className="space-y-2">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => addNode('botMessage')}>
-                Mensagem do Bot
-              </Button>
-              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => addNode('choices')}>
-                Escolhas do Cliente
-              </Button>
-              <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => addNode('attendant')}>
-                Atendente Humano
-              </Button>
-            </div>
-            <div className="mt-6 space-y-2">
+
+          <div className="mt-4">
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={fetchFlows}
-                disabled={isFetchingFlows}
-              >
-                {isFetchingFlows && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isFetchingFlows ? 'Carregando...' : 'Carregar Fluxo'}
-              </Button>
-              <Button variant="outline" className="w-full" onClick={createNewFlow}>
-                Novo Fluxo
-              </Button>
-            </div>
-            <div className="mt-6">
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Instruções</h4>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li>1/B: Mensagem</li>
-                <li>2/C: Escolhas</li>
-                <li>3/A: Atendente</li>
-                <li>Delete: Excluir</li>
-                <li>Arraste para conectar</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="flex-1 relative">
-            {/* Barra superior com controles de fluxo */}
-            <div className="absolute z-10 top-4 left-4 right-4 p-2 md:p-4 bg-background shadow-md rounded-md border border-border">
-              <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
-                <div className="flex-1 flex flex-col md:flex-row gap-2">
-                  <Input
-                    value={flowName}
-                    onChange={(e) => setFlowName(e.target.value)}
-                    placeholder="Nome do Fluxo"
-                    className="w-full md:w-48 bg-muted border-input text-foreground"
-                  />
-                  <Input
-                    value={flowDescription}
-                    onChange={(e) => setFlowDescription(e.target.value)}
-                    placeholder="Descrição"
-                    className="w-full md:w-48 bg-muted border-input text-foreground"
-                  />
-                </div>
-                <Button
-                  onClick={saveFlow}
-                  disabled={isSaving}
-                  className="bg-blue-600 hover:bg-blue-700 mt-2 md:mt-0"
-                >
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isSaving ? 'Salvando...' : flowId ? 'Atualizar' : 'Salvar'}
-                </Button>
-              </div>
-            </div>
-            
-            {/* Área do fluxo */}
-            <div className="h-full pt-[80px] md:pt-[68px]">
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                nodeTypes={nodeTypes}
-                onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-                fitView
-                snapToGrid={true}
-                snapGrid={[20, 20]}
-                defaultEdgeOptions={{
-                  type: 'smoothstep',
-                  animated: true,
-                  style: { stroke: '#3b82f6', strokeWidth: 2 },
-                  markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
+                onClick={() => {
+                  createNewFlow();
+                  setIsWelcomeDialogOpen(false);
                 }}
-                className="bg-background"
-                zoomOnDoubleClick={!isMobile}
-                zoomOnScroll={!isMobile}
-                panOnScroll={isMobile}
-                panOnDrag={true}
-                zoomOnPinch={true}
               >
-                <Background gap={20} color="#444" />
-                <Controls 
-                  className="bg-background border-border" 
-                  showInteractive={!isMobile}
-                  position={isMobile ? "bottom-right" : "bottom-left"}
-                />
-                {!isMobile && <MiniMap 
-                  nodeStrokeWidth={3} 
-                  className="bg-background border-border" 
-                  zoomable 
-                  pannable 
-                />}
-              </ReactFlow>
-              
-              {/* Botões de ação flutuantes para dispositivos móveis */}
-              {isMobile && (
-                <div className="fixed bottom-4 right-4 flex flex-col space-y-2 z-20">
-                  <Button 
-                    className="rounded-full h-12 w-12 p-0 bg-blue-600 hover:bg-blue-700 shadow-lg flex items-center justify-center"
-                    onClick={() => addNode('botMessage')}
-                  >
-                    <Plus className="h-6 w-6" />
-                  </Button>
-                  <Button 
-                    className="rounded-full h-12 w-12 p-0 bg-green-600 hover:bg-green-700 shadow-lg flex items-center justify-center"
-                    onClick={() => addNode('choices')}
-                  >
-                    <Plus className="h-6 w-6" />
-                  </Button>
-                  <Button 
-                    className="rounded-full h-12 w-12 p-0 bg-purple-600 hover:bg-purple-700 shadow-lg flex items-center justify-center"
-                    onClick={() => addNode('attendant')}
-                  >
-                    <Plus className="h-6 w-6" />
-                  </Button>
-                </div>
-              )}
+                Criar Novo Fluxo
+              </Button>
             </div>
           </div>
-        </div>
+        </DialogContent>
+      </Dialog>
 
-        <style jsx>{`
-        .react-flow__node.selected {
-          box-shadow: 0 0 0 2px #3b82f6;
-        }
-        .react-flow__handle {
-          width: 12px !important;
-          height: 12px !important;
-          transition: transform 0.2s;
-        }
-        .react-flow__handle:hover {
-          transform: scale(1.5);
-        }
-        .react-flow__edge-path {
-          stroke: #3b82f6 !important;
-          stroke-width: 2px !important;
-        }
-        @media (max-width: 768px) {
+      <AppLayout>
+        <ReactFlowProvider>
+          <div className="relative h-screen bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
+            {/* Header Controls Component */}
+            <HeaderControls 
+              flowName={flowName}
+              setFlowName={setFlowName}
+              flowDescription={flowDescription}
+              setFlowDescription={setFlowDescription}
+              isBuilderEnabled={isBuilderEnabled}
+              toggleChatFlowActive={toggleChatFlowActive}
+              isSaving={isSaving}
+              saveFlow={saveFlow}
+              flowId={flowId}
+              flowConfig={flowConfig}
+              setAsStartFlow={setAsStartFlow}
+            />
+            
+            {/* Desktop Sidebar Component */}
+            <Sidebar 
+              isBuilderEnabled={isBuilderEnabled}
+              addNode={addNode}
+              fetchFlows={fetchFlows}
+              createNewFlow={createNewFlow}
+              isFetchingFlows={isFetchingFlows}
+              toggleChatFlowActive={toggleChatFlowActive}
+            />
+
+            {/* Mobile Sidebar Component */}
+            <MobileSidebar 
+              mobileMenuOpen={mobileMenuOpen}
+              setMobileMenuOpen={setMobileMenuOpen}
+              addNode={addNode}
+              fetchFlows={fetchFlows}
+              createNewFlow={createNewFlow}
+              isFetchingFlows={isFetchingFlows}
+              isBuilderEnabled={isBuilderEnabled}
+              toggleChatFlowActive={toggleChatFlowActive}
+            />
+
+            {/* Flow Area Component */}
+            <FlowArea 
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              nodeTypes={nodeTypes}
+              isBuilderEnabled={isBuilderEnabled}
+              isInitialLoading={isInitialLoading}
+              isMobile={isMobile}
+              setSelectedNodeId={setSelectedNodeId}
+              selectedNodeId={selectedNodeId}
+              toggleChatFlowActive={toggleChatFlowActive}
+              addNode={addNode}
+            />
+          </div>
+
+          <style dangerouslySetInnerHTML={{
+            __html: `
+          .react-flow__node.selected {
+            box-shadow: 0 0 0 2px #3b82f6;
+          }
           .react-flow__handle {
-            width: 16px !important;
-            height: 16px !important;
+            width: 12px !important;
+            height: 12px !important;
+            transition: transform 0.2s;
           }
-          .react-flow__minimap {
-            display: none;
+          /* Animación sutil de hover en los nodos */
+          .react-flow__node:hover {
+            filter: brightness(1.05);
+            transform: translateY(-2px);
+            transition: all 0.2s ease;
           }
-        }
-      `}</style>
-      </ReactFlowProvider>
-    </AppLayout>
-    <Toaster />
+          /* Animación sutil para nodos cuando se conectan */
+          .react-flow__edge-path {
+            stroke-dasharray: 5;
+            animation: flowPath 10s linear infinite;
+          }
+          @keyframes flowPath {
+            to {
+              stroke-dashoffset: -100;
+            }
+          }
+          .react-flow__handle:hover {
+            transform: scale(1.5);
+          }
+          .react-flow__edge-path {
+            stroke: #3b82f6 !important;
+            stroke-width: 2px !important;
+          }
+          @media (max-width: 768px) {
+            .react-flow__handle {
+              width: 16px !important;
+              height: 16px !important;
+            }
+            .react-flow__minimap {
+              display: none;
+            }
+          }
+        ` }} />
+        </ReactFlowProvider>
+      </AppLayout>
+      <Toaster />
     </>
   );
 };

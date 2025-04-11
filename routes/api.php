@@ -24,21 +24,19 @@ Route::group(['prefix' => 'chat'], function () {
     Route::delete('/faqs/{id}', [FAQController::class, 'destroy'])->name('faq.destroy');
 });
 
-// Rotas para o ChatFlow (construtor de fluxos de chat)
-Route::group(['prefix' => 'chat-flows'], function () {
+
+Route::get('/start-flow', [ChatFlowController::class, 'getStartFlow'])->name('chat-flows.start-flow');
+
+Route::group(['prefix' => 'chat-flows', 'middleware' => 'auth:sanctum'], function () {
     Route::get('/', [ChatFlowController::class, 'index'])->name('chat-flows.index');
     Route::post('/', [ChatFlowController::class, 'store'])->name('chat-flows.store');
-    // Rota específica deve vir ANTES das rotas com parâmetros
     Route::get('/active', [ChatFlowController::class, 'getActive'])->name('chat-flows.active');
-    Route::get('/start-flow', [ChatFlowController::class, 'getStartFlow'])->name('chat-flows.start-flow');
-    // Rotas com parâmetros vêm depois
     Route::get('/{id}', [ChatFlowController::class, 'show'])->name('chat-flows.show');
     Route::put('/{id}', [ChatFlowController::class, 'update'])->name('chat-flows.update');
     Route::delete('/{id}', [ChatFlowController::class, 'destroy'])->name('chat-flows.destroy');
 });
 
-// Rotas para configuração do ChatFlow
-Route::group(['prefix' => 'chat-flow-config'], function () {
+Route::group(['prefix' => 'chat-flow-config', 'middleware' => 'auth:sanctum'],  function () {
     Route::get('/', [\App\Http\Controllers\ChatFlowConfigController::class, 'index'])->name('chat-flow-config.index');
     Route::put('/', [\App\Http\Controllers\ChatFlowConfigController::class, 'update'])->name('chat-flow-config.update');
     Route::get('/available-flows', [\App\Http\Controllers\ChatFlowConfigController::class, 'availableFlows'])->name('chat-flow-config.available-flows');

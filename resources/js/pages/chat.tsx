@@ -73,7 +73,6 @@ const useWebSocket = (
               });
             }
 
-            // Atualizar userInfoCache com informações do usuário do evento
             if (event.message.user_info) {
               setUserInfoCache(prev => {
                 const updatedCache = {
@@ -166,7 +165,6 @@ const useChatData = (
       setIsLoading(true);
       setError(null);
       const response = await axios.get('/api/chat/conversations');
-      console.log('Fetched conversations:', response.data);
       setConversations(response.data);
       localStorage.setItem('chatConversations', JSON.stringify(response.data));
     } catch (error) {
@@ -183,7 +181,6 @@ const useChatData = (
 
       const now = Date.now();
       const lastUpdate = lastUpdateRef.current[conversationId] || 0;
-      // Usar um intervalo maior (5 minutos) já que o WebSocket cuida das atualizações em tempo real
       if (!force && now - lastUpdate < 300000) return;
 
       if (conversationId in pendingFetchRef.current) {

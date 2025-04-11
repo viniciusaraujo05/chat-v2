@@ -15,8 +15,7 @@ class GetAllChatFlowsAction
                 ->get();
         }
 
-        return ChatFlow::where('user_id', 1)
-            ->orWhere('is_public', true)
+        return ChatFlow::where('is_public', true)
             ->orderBy('updated_at', 'desc')
             ->get();
     }

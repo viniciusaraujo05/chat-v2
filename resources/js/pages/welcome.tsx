@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { usePage } from "@inertiajs/react";
+import { SharedData } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +19,7 @@ import { motion } from "framer-motion";
 export default function ChatbotLandingPage() {
   const [email, setEmail] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Simulação de estado de login
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const features = [
     {
@@ -44,11 +46,12 @@ export default function ChatbotLandingPage() {
     { value: "87%", label: "dos usuários aprovam chatbots", source: "Ecommerce Bonsai, 2024" },
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Email cadastrado:", email);
     setEmail("");
   };
+
+  const { auth } = usePage<SharedData>().props;
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-black text-white' : 'bg-white text-black'} transition-colors duration-300`}>
@@ -72,7 +75,7 @@ export default function ChatbotLandingPage() {
             <Button variant="ghost" asChild className={`${isDarkMode ? 'text-white hover:bg-white/20' : 'text-black hover:bg-black/10'}`}>
               <a href="#pricing">Preços</a>
             </Button>
-            {isLoggedIn ? (
+            {auth.user ? (
               <Button asChild className={`${isDarkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-black text-white hover:bg-black/80'}`}>
                 <a href="/dashboard">Painel</a>
               </Button>

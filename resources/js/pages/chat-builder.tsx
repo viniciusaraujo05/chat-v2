@@ -2,7 +2,8 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
-import ReactFlow, {
+import { usePage } from '@inertiajs/react';
+import {
   useNodesState,
   useEdgesState,
   Node,
@@ -10,15 +11,13 @@ import ReactFlow, {
   Connection,
   NodeTypes,
   ReactFlowProvider,
-  MarkerType,
-  Background,
-  Controls,
-  MiniMap,
+  MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { toast } from '@/components/ui/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Loader2, Plus, MenuIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+
 import {
   Dialog,
   DialogContent,
@@ -27,20 +26,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-  SheetClose,
-} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 
 // Import components
@@ -50,13 +36,10 @@ import AttendantNode from '@/components/chat-builder/nodes/AttendantNode';
 import Sidebar from '@/components/chat-builder/sidebar/Sidebar';
 import MobileSidebar from '@/components/chat-builder/sidebar/MobileSidebar';
 import HeaderControls from '@/components/chat-builder/controls/HeaderControls';
-import DeleteDialog from '@/components/chat-builder/dialogs/DeleteDialog';
-import WelcomeDialog from '@/components/chat-builder/dialogs/WelcomeDialog';
+
 import FlowArea from '@/components/chat-builder/flow/FlowArea';
 
-// Import types and services
-import { NodeData, ChatFlowConfig, ChatFlow } from '@/components/chat-builder/types';
-import { chatFlowService } from '@/components/chat-builder/services/chatFlowService';
+import { NodeData, ChatFlowConfig } from '@/components/chat-builder/types';
 
 const ChatBuilder: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
@@ -72,6 +55,7 @@ const ChatBuilder: React.FC = () => {
   const [flowConfig, setFlowConfig] = useState<ChatFlowConfig>({ is_active: false, start_flow: null });
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [markAsStartFlow, setMarkAsStartFlow] = useState(false);
+  const { auth } = usePage().props;
 
   const addNode = useCallback((type: 'botMessage' | 'choices' | 'attendant') => {
     const maxSequence = nodes.length ? Math.max(...nodes.map(n => n.data.sequence)) : 0;
@@ -109,7 +93,6 @@ const ChatBuilder: React.FC = () => {
   const onConnect = useCallback((params: Connection) => {
     const sourceNode = nodes.find(n => n.id === params.source);
 
-    // Garantir que source e target existam e sejam strings
     if (!params.source || !params.target) {
       console.error('Source ou target inválidos:', params);
       return;
@@ -117,8 +100,8 @@ const ChatBuilder: React.FC = () => {
 
     const edge: Edge = {
       id: `e-${params.source}-${params.target}-${Date.now()}`,
-      source: params.source, // String não nula
-      target: params.target, // String não nula
+      source: params.source,
+      target: params.target,
       sourceHandle: params.sourceHandle,
       targetHandle: params.targetHandle,
       type: 'smoothstep',
@@ -155,16 +138,14 @@ const ChatBuilder: React.FC = () => {
       const buttonY = saveButton ? (saveButton.getBoundingClientRect().top / window.innerHeight) + 0.03 : 0.1;
       
       if (flowId) {
-        response = await axios.put(`/api/chat-flows/${flowId}`, flowData);
-        // Lançar confeti localizado en el botón de guardar
+        response = await axios.put(`/api/chat-flows/${flowId}`, flowData, { headers: { Authorization: `Bearer ${auth.token}` } });
         launchConfetti(buttonX, buttonY);
-        // Mostrar notificación sutil
         setShowCelebration(true);
         setTimeout(() => setShowCelebration(false), 2000);
         toast({ title: 'Fluxo Atualizado', description: 'Alterações salvas com sucesso! 👍' });
       } else {
-        response = await axios.post('/api/chat-flows', flowData);
-        // Garantir que o ID seja armazenado como string de um número
+        response = await axios.post('/api/chat-flows', flowData, { headers: { Authorization: `Bearer ${auth.token}` } });
+
         const newId = response.data.data.id;
         if (newId && (typeof newId === 'number' || (typeof newId === 'string' && /^\d+$/.test(newId)))) {
           setFlowId(newId.toString());
@@ -197,11 +178,7 @@ const ChatBuilder: React.FC = () => {
         return;
       }
 
-      console.log(`Fazendo requisição para: /api/chat-flows/${flowId}`);
-      const response = await axios.get(`/api/chat-flows/${flowId}`);
-      console.log('Resposta da API completa:', response);
-      console.log('Status da resposta:', response.status);
-      console.log('Dados da resposta:', response.data);
+      const response = await axios.get(`/api/chat-flows/${flowId}`, { headers: { Authorization: `Bearer ${auth.token}` } });
 
       let flowData;
 
@@ -355,12 +332,10 @@ const ChatBuilder: React.FC = () => {
     if (!flowToDelete) return;
 
     try {
-      const response = await axios.delete(`/api/chat-flows/${flowToDelete}`);
+      const response = await axios.delete(`/api/chat-flows/${flowToDelete}`, { headers: { Authorization: `Bearer ${auth.token}` } });
       if (response.data.success) {
         toast({ title: 'Fluxo Excluído', description: 'O fluxo foi excluído com sucesso!' });
-        // Sempre limpar o editor após excluir um fluxo
         createNewFlow();
-        // Recarregar a lista de fluxos após excluir com sucesso
         setTimeout(() => fetchFlows(), 500);
       } else {
         toast({ variant: 'destructive', title: 'Erro ao Excluir', description: 'Erro ao excluir o fluxo.' });
@@ -377,9 +352,9 @@ const ChatBuilder: React.FC = () => {
   const fetchFlows = useCallback(async () => {
     setIsFetchingFlows(true);
     try {
-      const response = await axios.get('/api/chat-flows');
-      console.log('Resposta ao buscar fluxos:', response.data);
-      // Verificar se os dados estão disponíveis no formato esperado
+
+      const response = await axios.get('/api/chat-flows', { headers: { Authorization: `Bearer ${auth.token}` } });
+
       let flows = [];
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
         // Novo formato de resposta da API
@@ -425,10 +400,8 @@ const ChatBuilder: React.FC = () => {
 
         modal.querySelector('#close-modal')?.addEventListener('click', () => document.body.removeChild(modal));
 
-        // Adicionar evento de clique para carregar fluxo
         modal.querySelectorAll('.flow-item').forEach(item => {
           item.addEventListener('click', (e) => {
-            // Ignorar cliques no botão de excluir
             if ((e.target as Element).closest('.flow-delete-btn')) return;
 
             const flowId = item.getAttribute('data-id');
@@ -439,14 +412,12 @@ const ChatBuilder: React.FC = () => {
           });
         });
 
-        // Adicionar evento de clique para excluir fluxo
         modal.querySelectorAll('.flow-delete-btn').forEach(button => {
           button.addEventListener('click', (e) => {
             e.stopPropagation();
             const flowId = button.getAttribute('data-delete-id');
             if (flowId) {
               document.body.removeChild(modal);
-              // Abrir o diálogo de confirmação após fechar o modal
               setTimeout(() => confirmDeleteFlow(flowId), 100);
             }
           });
@@ -491,46 +462,38 @@ const ChatBuilder: React.FC = () => {
     attendant: (props) => <AttendantNode {...props} onChange={updateNodeData} onDelete={deleteNode} selected={props.id === selectedNodeId} />,
   }), [updateNodeData, deleteNode, selectedNodeId]);
 
-  // Estado para controlar a visibilidade do menu lateral em dispositivos móveis
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Estado para controlar se o Chat Builder está ativo
   const [isBuilderEnabled, setIsBuilderEnabled] = useState(false);
-
-  // Detecta se a tela é pequena (mobile)
   const [isMobile, setIsMobile] = useState(false);
   const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
   const [availableFlows, setAvailableFlows] = useState<any[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showCelebration, setShowCelebration] = useState(false);
 
-  // Función para lanzar confeti sutil en el botón de guardar
   const launchConfetti = (originX = 0.9, originY = 0.1) => {
     console.log('Lançando confeti sutil!');
-    // Configuración de confeti sutil y localizado
     confetti({
       particleCount: 40,
       spread: 50,
       origin: { x: originX, y: originY },
       colors: ['#4F46E5', '#0EA5E9', '#10B981'],
       zIndex: 1000,
-      scalar: 0.7, // Partículas más pequeñas
-      gravity: 1, // Más gravedad para que caigan más rápido
-      disableForReducedMotion: true, // Accesibilidad
+      scalar: 0.7,
+      gravity: 1,
+      disableForReducedMotion: true,
     });
   };
 
-  // Carregar configuração do ChatFlow
   const loadConfig = useCallback(async () => {
     try {
       setLoadingConfig(true);
-      
-      // Verificar se existe configuração em cache
+
+      console.log('Usuário autenticado:', auth);
+
       const cachedConfig = localStorage.getItem('chatFlowConfig');
       const cacheTimestamp = localStorage.getItem('chatFlowConfigTimestamp');
       const cacheExpiration = 30 * 60 * 1000; // 30 minutos em milissegundos
       
-      // Verificar se o cache é válido e não expirou
       if (cachedConfig && cacheTimestamp) {
         const parsedConfig = JSON.parse(cachedConfig);
         const timestamp = parseInt(cacheTimestamp);
@@ -544,41 +507,33 @@ const ChatBuilder: React.FC = () => {
           setIsInitialLoading(false);
           return;
         } else {
-          console.log('Cache expirado, buscando da API');
+          localStorage.removeItem('chatFlowConfig');
+          localStorage.removeItem('chatFlowConfigTimestamp');
         }
       }
       
-      // Se não tem cache ou está expirado, buscar da API
-      const response = await axios.get('/api/chat-flow-config');
-      console.log('Resposta da API de configuração:', response.data);
+      const response = await axios.get('/api/chat-flow-config', { headers: { Authorization: `Bearer ${auth.token}` } });
 
       if (response.data.success) {
-        // Se a configuração existe, usamos ela
         if (response.data.data && Object.keys(response.data.data).length > 0) {
           const config = response.data.data;
           console.log('Configuração carregada:', config);
           setFlowConfig(config);
-          // Definir o estado do builder com base na configuração
           setIsBuilderEnabled(Boolean(config.is_active));
           
-          // Salvar no cache
           localStorage.setItem('chatFlowConfig', JSON.stringify(config));
           localStorage.setItem('chatFlowConfigTimestamp', Date.now().toString());
         } else {
-          // Se não existe configuração, criamos uma padrão
-          console.log('Criando configuração padrão');
           const defaultConfig = {
-            is_active: false, // Garantir que seja boolean
+            is_active: false,
             start_flow: null
           };
 
-          const createResponse = await axios.put('/api/chat-flow-config', defaultConfig);
+          const createResponse = await axios.put('/api/chat-flow-config', defaultConfig, { headers: { Authorization: `Bearer ${auth.token}` } });
           if (createResponse.data.success) {
-            console.log('Configuração padrão criada:', createResponse.data.data);
             setFlowConfig(createResponse.data.data);
-            setIsBuilderEnabled(false); // Builder começa desativado
+            setIsBuilderEnabled(false);
             
-            // Salvar no cache
             localStorage.setItem('chatFlowConfig', JSON.stringify(createResponse.data.data));
             localStorage.setItem('chatFlowConfigTimestamp', Date.now().toString());
 
@@ -590,7 +545,6 @@ const ChatBuilder: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Erro ao carregar configuração:', error);
       toast({
         variant: 'destructive',
         title: 'Erro',
@@ -602,18 +556,14 @@ const ChatBuilder: React.FC = () => {
     }
   }, []);
 
-  // Atualizar a configuração do ChatFlow
   const updateConfig = useCallback(async (newConfig: Partial<ChatFlowConfig>) => {
     try {
-      // Garantir que is_active seja explicitamente boolean se estiver presente
       const configToSend = { ...flowConfig, ...newConfig };
 
-      // Converter explicitamente para boolean caso seja necessário
       if ('is_active' in configToSend) {
         configToSend.is_active = Boolean(configToSend.is_active);
       }
       
-      // Garantir que start_flow seja um número válido ou null
       if ('start_flow' in configToSend) {
         const rawValue = configToSend.start_flow;
         if (rawValue === null || rawValue === undefined) {
@@ -622,10 +572,6 @@ const ChatBuilder: React.FC = () => {
           configToSend.start_flow = rawValue;
         } else if (typeof rawValue === 'string' && /^\d+$/.test(rawValue)) {
           configToSend.start_flow = parseInt(rawValue, 10);
-        } else {
-          // Se não for um número válido, define como null
-          configToSend.start_flow = null;
-          console.warn('Valor inválido para start_flow, definindo como null:', rawValue);
         }
       }
 
@@ -633,7 +579,7 @@ const ChatBuilder: React.FC = () => {
         console.log('Enviando configuração para API:', configToSend);
       }
 
-      const response = await axios.put('/api/chat-flow-config', configToSend);
+      const response = await axios.put('/api/chat-flow-config', configToSend, { headers: { Authorization: `Bearer ${auth.token}` } });
 
       if (response.data.success) {
         if (process.env.NODE_ENV === 'development') {
@@ -641,7 +587,6 @@ const ChatBuilder: React.FC = () => {
         }
         setFlowConfig(response.data.data);
         
-        // Atualizar o cache
         localStorage.setItem('chatFlowConfig', JSON.stringify(response.data.data));
         localStorage.setItem('chatFlowConfigTimestamp', Date.now().toString());
         
@@ -720,7 +665,7 @@ const ChatBuilder: React.FC = () => {
         description: <div className="flex items-center"><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando configuração</div>,
       });
 
-      const response = await axios.put('/api/chat-flow-config', payload);
+      const response = await axios.put('/api/chat-flow-config', payload, { headers: { Authorization: `Bearer ${auth.token}` } });
 
       if (response.data.success) {
         if (process.env.NODE_ENV === 'development') {
@@ -747,8 +692,6 @@ const ChatBuilder: React.FC = () => {
         description: 'Não foi possível alterar o estado do builder.'
       });
     }
-    // Remover flowConfig das dependências para evitar loop infinito
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBuilderEnabled]);
 
   // Definir o fluxo atual como fluxo inicial
@@ -795,7 +738,7 @@ const ChatBuilder: React.FC = () => {
       console.log('Payload para API:', payload);
 
       // Usar diretamente o payload simplificado
-      const response = await axios.put('/api/chat-flow-config', payload);
+      const response = await axios.put('/api/chat-flow-config', payload, { headers: { Authorization: `Bearer ${auth.token}` } });
 
       if (response.data.success) {
         console.log('Configuração atualizada com sucesso:', response.data.data);
@@ -838,46 +781,25 @@ const ChatBuilder: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Define se o builder será ativado automaticamente ao carregar
   useEffect(() => {
-    // Por padrão, o builder inicia desativado
     setIsBuilderEnabled(false);
-
-    // Se quiser que o Builder inicie ativado em ambiente de desenvolvimento,
-    // descomente a linha abaixo
-    // setIsBuilderEnabled(true);
   }, []);
 
-  // Carrega os fluxos disponíveis quando a página é aberta
   useEffect(() => {
     const loadInitialData = async () => {
-      // Garantir que o estado de loading seja definido imediatamente
       setIsInitialLoading(true);
       
-      // Pequeno atraso para garantir que a tela de loading seja renderizada
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
       try {
-        // Primeiro, carregar a configuração do ChatFlow
-        await loadConfig();
-        console.log('Configuração carregada:', flowConfig);
-        
-        // Importante: Obtemos a configuração atualizada diretamente
-        const currentConfig = await axios.get('/api/chat-flow-config');
+        await loadConfig();       
+        const currentConfig = await axios.get('/api/chat-flow-config', { headers: { Authorization: `Bearer ${auth.token}` } });
         const config = currentConfig.data.data || { is_active: false, start_flow: null };
-        console.log('Configuração atual obtida diretamente:', config);
-
-        const response = await axios.get('/api/chat-flows');
-        console.log('Resposta completa da API:', response.data);
-
-        // Atualizado para o novo formato da API
+        const response = await axios.get('/api/chat-flows', { headers: { Authorization: `Bearer ${auth.token}` } });
         const flows = response.data.data || [];
-        console.log('Fluxos disponíveis:', flows);
-        console.log('Número de fluxos encontrados:', flows.length);
 
         setAvailableFlows(flows);
 
-        // Verificar detalhes de cada fluxo para debug apenas no ambiente de desenvolvimento
         if (process.env.NODE_ENV === 'development') {
           flows.forEach((flow: any, index: number) => {
             console.log(`Fluxo ${index + 1}:`, {
@@ -889,34 +811,27 @@ const ChatBuilder: React.FC = () => {
           });
         }
 
-        // Verificar inicialmente se o chat está ativado, antes de qualquer outra decisão
         if (!config.is_active) {
-          // Se o chat estiver desativado, NUNCA mostramos o diálogo
-          console.log('Chat está desativado, não mostraremos o diálogo de seleção');
           setIsWelcomeDialogOpen(false);
           
           if (flows.length === 0) {
-            console.log('Nenhum fluxo encontrado, criando um novo fluxo');
             createNewFlow();
           } else {
-            console.log('Carregando o primeiro fluxo disponível sem mostrar diálogo');
             await loadFlow(flows[0].id);
           }
         } else {
-          // O chat está ativado, agora aplicamos a lógica normal
           if (flows.length === 0) {
-            // Se não houver fluxos, não mostramos o diálogo e criamos um novo fluxo
-            console.log('Nenhum fluxo encontrado, criando um novo fluxo');
             createNewFlow();
             setIsWelcomeDialogOpen(false);
           } else if (flows.length === 1) {
-            // Se houver apenas um fluxo, carregamos automaticamente
-            console.log('Um único fluxo encontrado, carregando automaticamente');
+            await loadFlow(flows[0].id);
+            setIsWelcomeDialogOpen(false);
+            createNewFlow();
+            setIsWelcomeDialogOpen(false);
+          } else if (flows.length === 1) {
             await loadFlow(flows[0].id);
             setIsWelcomeDialogOpen(false);
           } else {
-            // Múltiplos fluxos e chat ativado
-            // Verificamos se há um fluxo inicial configurado
             if (config.start_flow) {
               const startFlow = flows.find((flow: { id: number; name: string }) => flow.id === config.start_flow);
               if (startFlow) {
@@ -924,13 +839,9 @@ const ChatBuilder: React.FC = () => {
                 await loadFlow(startFlow.id);
                 setIsWelcomeDialogOpen(false);
               } else {
-                // Se houver múltiplos fluxos, mostramos o diálogo para o usuário escolher
-                console.log('Múltiplos fluxos encontrados, mostrando diálogo de seleção');
                 setIsWelcomeDialogOpen(true);
               }
             } else {
-              // Se houver múltiplos fluxos, mostramos o diálogo para o usuário escolher
-              console.log('Múltiplos fluxos encontrados, mostrando diálogo de seleção');
               setIsWelcomeDialogOpen(true);
             }
           }
@@ -939,10 +850,7 @@ const ChatBuilder: React.FC = () => {
         console.error('Erro ao carregar os fluxos iniciais:', error);
         if (error && typeof error === 'object' && 'response' in error && error.response) {
           const axiosError = error as { response: { data: any; status: number } };
-          console.error('Resposta de erro:', axiosError.response.data);
-          console.error('Status do erro:', axiosError.response.status);
         }
-        // Em caso de erro, criamos um novo fluxo
         toast({
           variant: 'destructive',
           title: 'Erro ao carregar fluxos',
@@ -950,17 +858,11 @@ const ChatBuilder: React.FC = () => {
         });
         createNewFlow();
         setIsWelcomeDialogOpen(false);
-      } finally {
-        // Não desativamos o loading aqui - será desativado apenas quando os fluxos estiverem prontos
-        // O estado de loading será controlado nos useEffects específicos para cada operação
       }
     };
 
     loadInitialData();
-    // Remover flowConfig das dependências para evitar loop infinito de requisições
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadFlow, createNewFlow, loadConfig]);
-
 
   return (
     <>
@@ -1034,7 +936,7 @@ const ChatBuilder: React.FC = () => {
           // Se não houver fluxos, crie um novo
           if (availableFlows.length === 0) {
             createNewFlow();
-          } else if (availableFlows.length > 0) {
+          } else {
             // Se houver fluxos disponíveis, carregue o primeiro por padrão
             loadFlow(availableFlows[0].id);
           }

@@ -27,5 +27,6 @@
             cacheTTL: 24 * 60 * 60 * 1000,
         };
     </script>
-    <script src="https://chat-v2-main-mkig4j.laravel.cloud/js/chat-widget.js"></script>
+
+    <script src="http://localhost/js/chat-widget.js"></script>
 </html>

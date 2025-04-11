@@ -1,5 +1,4 @@
 (() => {
-    // Configurações constantes
     const CONSTANTS = {
         CHAT_SERVER: window.location.origin,
         WS_SERVER: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}:8080/app/7vrgi25mdfojb94mbz3v`,
@@ -13,7 +12,6 @@
         },
     };
 
-    // Utilitários
     const Utils = {
         createElement(tag, classes = '', attributes = {}) {
             const element = document.createElement(tag);
@@ -68,7 +66,6 @@
         },
     };
 
-    // Configuração do chat
     const Config = {
         get() {
             return { ...CONSTANTS.DEFAULT_CONFIG, ...(window.chatConfig || {}) };
@@ -163,7 +160,7 @@
         async getChatFlow() {
             try {
                 // Busca o fluxo de chat inicial conforme configuração
-                const response = await fetch(`${CONSTANTS.CHAT_SERVER}/api/chat-flows/start-flow`);
+                const response = await fetch(`${CONSTANTS.CHAT_SERVER}/api/start-flow`);
                 
                 if (!response.ok) {
                     if (response.status === 404) {
@@ -986,10 +983,43 @@
             this.messagesContainer = Utils.createElement('div', 'flex-1 overflow-y-auto p-2 sm:p-4 space-y-3', {
                 style: 'background-color: #f9f9f9; overscroll-behavior: contain;'
             });
+            
+            // Adicionar indicador de carregamento no container de mensagens
+            this.loadingIndicator = Utils.createElement('div', 'flex justify-center items-center py-6');
+            this.loadingIndicator.innerHTML = `
+                <div class="loading-spinner flex justify-center items-center">
+                    <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            `;
+            
+            // Adicionar estilos para o spinner
+            const spinnerStyle = document.createElement('style');
+            spinnerStyle.textContent = `
+                .loading-spinner { text-align: center; }
+                .spinner { 
+                    display: inline-block; 
+                    width: 40px; 
+                    height: 40px; 
+                    border: 3px solid rgba(79, 70, 229, 0.2); 
+                    border-radius: 50%; 
+                    border-top-color: #4F46E5; 
+                    animation: spin 1s ease-in-out infinite; 
+                }
+                @keyframes spin { 
+                    to { transform: rotate(360deg); } 
+                }
+            `;
+            document.head.appendChild(spinnerStyle);
+            
+            this.messagesContainer.appendChild(this.loadingIndicator);
             this.container.appendChild(this.messagesContainer);
             
             // SOLUÇÃO DEFINITIVA: Restaurar as mensagens salvas do localStorage
-            this.restoreMessagesFromLocalStorage();
+            // Comentado para evitar conflito com loadHistory que busca do servidor
+            // this.restoreMessagesFromLocalStorage();
 
             this.typingIndicator = Utils.createElement('div', 'px-2 sm:px-4 pb-2 text-sm text-gray-500 hidden', { id: 'typing', style: 'display: none;' });
             this.typingIndicator.innerHTML = `
@@ -1211,21 +1241,35 @@
             // Criar manualmente a estrutura da mensagem do cliente seguindo padrão shadcn
             const messageDiv = document.createElement('div');
             messageDiv.setAttribute('data-message-id', message.id);
-            messageDiv.style.cssText = 'display:flex; justify-content:flex-end; margin-bottom:12px; animation: fadeIn 0.3s ease-in-out;';
             
+            // Posicionar a mensagem baseado no tipo com animação de entrada
+            if (message.type === 'client') {
+                messageDiv.style.cssText = 'display:flex; justify-content:flex-end; margin-bottom:12px;';
+            } else {
+                messageDiv.style.cssText = 'display:flex; justify-content:flex-start; margin-bottom:12px;';
+            }
+            
+            // Criar a bolha da mensagem
             const bubble = document.createElement('div');
-            bubble.style.cssText = 'background-color:#4F46E5; color:white; position:relative; ' +
-                'max-width:80%; padding:12px; border-radius:12px 2px 12px 12px; font-size:14px; ' +
-                'box-shadow:0 2px 4px rgba(0,0,0,0.1); word-break:break-word;';
+            
+            // Aplicar estilos diferentes baseados no tipo de mensagem com bordas mais arredondadas para shadcn
+            if (message.type === 'client') {
+                bubble.style.cssText = 'background-color:#4F46E5; color:white; position:relative; ' +
+                    'max-width:80%; padding:12px; border-radius:12px 2px 12px 12px; font-size:14px; ' +
+                    'box-shadow:0 2px 4px rgba(0,0,0,0.1); word-break:break-word;';
+            } else {
+                bubble.style.cssText = 'background-color:#f1f5f9; color:#334155; position:relative; ' +
+                    'max-width:80%; padding:12px; border-radius:2px 12px 12px 12px; font-size:14px; ' +
+                    'box-shadow:0 1px 3px rgba(0,0,0,0.1); word-break:break-word;';
+            }
             
             // Adicionar o texto da mensagem
             bubble.innerText = message.text;
             
             // Adicionar timestamp
             const time = document.createElement('div');
-            time.style.cssText = 'font-size:10px; opacity:0.7; margin-top:4px; text-align:right; font-family:system-ui,-apple-system,sans-serif;';
-            const formattedTime = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            time.innerText = formattedTime;
+            time.style.cssText = 'font-size:10px; opacity:0.7; margin-top:4px; text-align:right;';
+            time.innerText = this.formatTime(message.timestamp);
             
             // Montar a estrutura
             bubble.appendChild(time);
@@ -1233,17 +1277,6 @@
             
             // Adicionar ao DOM
             this.messagesContainer.appendChild(messageDiv);
-            this.scrollToBottom();
-            
-            // Adicionar estilo para animação de entrada
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `;
-            document.head.appendChild(style);
             
             console.log('Mensagem do cliente adicionada ao DOM:', message.id);
         }
@@ -1380,24 +1413,24 @@
                                 const existingMsg = this.messages.get(tempId);
                                 const updatedMsg = {
                                     ...existingMsg,
-                                    id: messageId,
-                                    fromServer: true
+                                    id: messageId, // Usar o ID do servidor
+                                    fromServer: true,
+                                    // Manter flags de preservação
+                                    permanent: true,
+                                    preserve: true,
+                                    clientOriginal: true
                                 };
                                 
-                                // Remover a mensagem temporária e adicionar a permanente
+                                // Atualizar elementos DOM com o novo ID sem remover
+                                const msgElement = this.messagesContainer.querySelector(`[data-message-id="${existingMsg.id}"]`);
+                                if (msgElement) {
+                                    msgElement.setAttribute('data-message-id', messageId);
+                                    msgElement.setAttribute('data-preserved', 'true');
+                                }
+                                
+                                // Atualizar no mapa de mensagens
                                 this.messages.delete(tempId);
                                 this.messages.set(messageId, updatedMsg);
-                                
-                                // Atualizar o cache
-                                const cacheKey = `chat_history_${Utils.getConversationId()}`;
-                                const cached = Utils.getCache(cacheKey) || [];
-                                const cacheIndex = cached.findIndex(m => m.id === tempId);
-                                if (cacheIndex !== -1) {
-                                    cached[cacheIndex] = updatedMsg;
-                                } else {
-                                    cached.push(updatedMsg);
-                                }
-                                Utils.setCache(cacheKey, cached);
                             }
                         }
                     }
@@ -1521,14 +1554,14 @@
                 messageDiv.style.cssText = 'display:flex; justify-content:flex-start; margin-bottom:10px;';
             }
             
-            // Criar a bolha de mensagem com estilos inline
+            // Criar a bolha da mensagem
             const bubble = document.createElement('div');
             
             // Definir estilos básicos para a bolha
             const bubbleStyle = 'position:relative; max-width:80%; padding:12px; '
                 + 'border-radius:8px; font-size:14px; box-shadow:0 1px 2px rgba(0,0,0,0.1); word-break:break-word;';
                 
-            // Aplicar cores diferentes baseadas no tipo de mensagem
+            // Aplicar cores diferentes baseados no tipo de mensagem
             if (messageType === 'client') {
                 bubble.style.cssText = bubbleStyle + 'background-color:#4F46E5; color:white;';
             } else {
@@ -1636,14 +1669,15 @@
                 shouldPreserve: true
             };
             
+            // Comentado para evitar conflito com loadHistory que busca do servidor
             // SOLUÇÃO DEFINITIVA: Salvar no localStorage imediatamente para garantir persistência
-            const localStorageKey = `all_messages_${Utils.getConversationId()}`;
-            const savedMessages = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
-            if (!savedMessages.some(m => m.id === messageId)) {
-                savedMessages.push(normalizedMsg);
-                localStorage.setItem(localStorageKey, JSON.stringify(savedMessages));
-                console.log('✨ Mensagem salva no localStorage para garantir persistência:', messageId);
-            }
+            // const localStorageKey = `all_messages_${Utils.getConversationId()}`;
+            // const savedMessages = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+            // if (!savedMessages.some(m => m.id === messageId)) {
+            //     savedMessages.push(normalizedMsg);
+            //     localStorage.setItem(localStorageKey, JSON.stringify(savedMessages));
+            //     console.log('✨ Mensagem salva no localStorage para garantir persistência:', messageId);
+            // }
             
             this.messages.set(messageId, normalizedMsg);
 
@@ -1781,7 +1815,7 @@
                         tempElement.setAttribute('data-message-id', messageId);
                     }
                     
-                    // Atualizar o mapa sem remover a mensagem
+                    // Atualizar no mapa sem remover a mensagem
                     const preservedMsg = {
                         ...tempMsg,
                         id: messageId,
@@ -1989,7 +2023,7 @@
             `;
             const restartBtn = Utils.createElement(
                 'button',
-                'px-6 py-3 text-white font-semibold rounded-full shadow-lg transition-all duration-200 hover:scale-105',
+                'px-6 py-3 text-white font-semibold rounded-full shadow-lg transition hover:scale-105',
                 { style: `background: linear-gradient(135deg, ${this.config.bubbleColor}, ${this.adjustColor(this.config.bubbleColor, -20)});` }
             );
             restartBtn.textContent = 'Iniciar Nova Conversa';
@@ -2048,50 +2082,263 @@
         }
 
         async loadHistory() {
+            const conversationId = Utils.getConversationId();
+            if (!conversationId) {
+                console.log("No conversation ID found, skipping history load.");
+                return;
+            }
+
+            console.log(`Loading history for conversation: ${conversationId}`);
+            
+            // Mostrar loading apenas durante a requisição
+            const showLoading = () => {
+                if (this.loadingIndicator) {
+                    this.loadingIndicator.style.display = 'block';
+                    if (this.messagesContainer) {
+                        this.messagesContainer.innerHTML = '';
+                        this.messagesContainer.appendChild(this.loadingIndicator);
+                    }
+                }
+            };
+            
+            const hideLoading = () => {
+                if (this.loadingIndicator) {
+                    this.loadingIndicator.style.display = 'none';
+                }
+            };
+            
             try {
-                // Verificar se a conversa ainda existe antes de carregar o histórico
-                const conversationExists = await ApiClient.checkConversationExists();
-                if (!conversationExists) {
-                    console.log('A conversa não existe mais no banco de dados. Reiniciando o chat...');
-                    this.resetChat();
-                    return;
+                showLoading();
+                this.messages.clear();
+                
+                const response = await fetch(
+                    `${CONSTANTS.CHAT_SERVER}/api/chat/history?conversation_id=${conversationId}`
+                );
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        console.log("No history found for this conversation (404).");
+                        // Tentar restaurar do localStorage como fallback
+                        this.restoreMessagesFromLocalStorage();
+                        return;
+                    } else {
+                        console.error(`Error fetching history: ${response.status}`, await response.text());
+                        this.showError("Falha ao carregar histórico.");
+                        // Tentar restaurar do localStorage como fallback
+                        this.restoreMessagesFromLocalStorage();
+                        return;
+                    }
+                }
+
+                const data = await response.json();
+                console.log('Resposta completa da API:', JSON.stringify(data, null, 2));
+                
+                // CORREÇÃO IMPORTANTE: A API retorna um objeto com um array 'content' contendo as mensagens
+                // Não um array de mensagens diretamente
+                let historyMessages = [];
+                
+                if (data.content && Array.isArray(data.content)) {
+                    // Caso 1: A API retornou um objeto com array 'content'
+                    console.log('Encontrado array content com mensagens');
+                    historyMessages = data.content;
+                } else if (data.messages && Array.isArray(data.messages)) {
+                    // Caso 2: A API retornou um objeto com array 'messages'
+                    console.log('Encontrado array messages com mensagens');
+                    historyMessages = data.messages;
+                } else if (Array.isArray(data)) {
+                    // Caso 3: A API retornou um array diretamente
+                    console.log('API retornou um array diretamente');
+                    historyMessages = data;
+                } else {
+                    // Caso 4: Estrutura desconhecida, tentar encontrar as mensagens
+                    console.log('Estrutura desconhecida, procurando por mensagens...');
+                    if (data.id && data.conversation_id) {
+                        // Parece ser um único objeto de conversa
+                        if (data.content && Array.isArray(data.content)) {
+                            historyMessages = data.content;
+                            console.log('Encontrado array content em objeto de conversa');
+                        } else {
+                            // Pode ser que o próprio objeto seja a conversa com as mensagens dentro do content
+                            console.log('Objeto de conversa encontrado, verificando conteúdo:', data);
+                            
+                            // Se o objeto content não for um array, mas contiver as mensagens diretamente
+                            if (data.content && typeof data.content === 'object' && !Array.isArray(data.content)) {
+                                // Tentar extrair as mensagens do objeto content
+                                const extractedMessages = [];
+                                for (const key in data.content) {
+                                    if (data.content[key] && typeof data.content[key] === 'object') {
+                                        const msg = data.content[key];
+                                        if (msg.text || msg.message || msg.content) {
+                                            extractedMessages.push(msg);
+                                        }
+                                    }
+                                }
+                                
+                                if (extractedMessages.length > 0) {
+                                    historyMessages = extractedMessages;
+                                    console.log(`Encontradas ${extractedMessages.length} mensagens no objeto content`);
+                                }
+                            }
+                        }
+                    }
                 }
                 
-                const messages = await ApiClient.getHistory();
-                this.messagesContainer.innerHTML = '';
-                this.messages.clear();
-                messages.forEach((msg) => {
-                    if (!this.messages.has(msg.id)) {
-                        this.addMessage(msg, true);
-                    }
-                });
+                console.log(`Processando ${historyMessages.length} mensagens do histórico.`);
+                
+                if (historyMessages.length > 0) {
+                    console.log('Estrutura da primeira mensagem:', JSON.stringify(historyMessages[0], null, 2));
+                    
+                    // Salvar no localStorage para garantir persistência
+                    const messagesStorageKey = `all_messages_${Utils.getConversationId()}`;
+                    localStorage.setItem(messagesStorageKey, JSON.stringify(historyMessages));
+                    console.log('✨ Mensagens salvas no localStorage para garantir persistência');
+                    
+                    // Processar cada mensagem do array
+                    historyMessages.forEach(msg => {
+                        console.log('Processando mensagem:', msg);
+                        
+                        // Verificar se a mensagem já tem o formato correto (com campo text e type)
+                        if (msg.text && typeof msg.text === 'string' && msg.type) {
+                            console.log(`Adicionando mensagem já formatada: ${msg.id} (${msg.type})`);
+                            this.addMessage(msg, true);
+                        } else {
+                            console.warn('Mensagem em formato não reconhecido, tentando adaptar...', msg);
+                            
+                            // Extrair texto da mensagem de várias fontes possíveis
+                            let messageText = '';
+                            if (msg.text && typeof msg.text === 'string') {
+                                messageText = msg.text;
+                            } else if (msg.message && typeof msg.message === 'string') {
+                                messageText = msg.message;
+                            } else if (msg.content && typeof msg.content === 'string') {
+                                messageText = msg.content;
+                            } else if (Array.isArray(msg.content)) {
+                                // Se content for um array, pode conter as mensagens reais
+                                console.log('Encontrado array dentro da mensagem, processando submensagens...');
+                                msg.content.forEach(subMsg => {
+                                    if (subMsg && typeof subMsg === 'object') {
+                                        const subFormattedMsg = {
+                                            id: subMsg.id || Utils.generateId(),
+                                            type: subMsg.type || subMsg.sender_type || 'client',
+                                            text: subMsg.text || subMsg.message || '',
+                                            timestamp: subMsg.timestamp || subMsg.created_at || new Date().toISOString()
+                                        };
+                                        
+                                        if (subFormattedMsg.text && typeof subFormattedMsg.text === 'string' && subFormattedMsg.text.trim()) {
+                                            console.log(`Adicionando submensagem: ${subFormattedMsg.id} (${subFormattedMsg.type})`);
+                                            this.addMessage(subFormattedMsg, true);
+                                        }
+                                    }
+                                });
+                                return; // Pular o resto do processamento desta mensagem
+                            }
+                            
+                            // Tentar adaptar outros formatos de mensagem
+                            const formattedMsg = {
+                                id: msg.id || Utils.generateId(),
+                                type: msg.type || msg.sender_type || (msg.sender_id === 1 ? 'admin' : 'client'),
+                                text: messageText,
+                                timestamp: msg.timestamp || msg.created_at || new Date().toISOString()
+                            };
+                            
+                            if (formattedMsg.text && typeof formattedMsg.text === 'string' && formattedMsg.text.trim()) {
+                                console.log(`Adicionando mensagem adaptada: ${formattedMsg.id} (${formattedMsg.type})`);
+                                this.addMessage(formattedMsg, true);
+                            } else {
+                                console.warn(`Ignorando mensagem sem texto válido: ${formattedMsg.id}`);
+                            }
+                        }
+                    });
+                    console.log("History messages added to chat.");
+                    
+                    // Esconder o indicador de carregamento
+                    hideLoading();
+                } else {
+                    console.log("History is empty.");
+                    // Tentar restaurar do localStorage como fallback
+                    this.restoreMessagesFromLocalStorage();
+                    
+                    // Esconder o indicador de carregamento
+                    hideLoading();
+                }
+                
                 this.scrollToBottom();
+
             } catch (error) {
-                console.error('Erro ao carregar histórico:', error);
-                this.showError('Erro ao carregar o histórico.');
+                console.error('Failed to load or process chat history:', error);
+                this.showError("Falha ao carregar histórico.");
+                // Tentar restaurar do localStorage como fallback
+                this.restoreMessagesFromLocalStorage();
+            } finally {
+                // Esconder o indicador de carregamento quando terminar
+                hideLoading();
             }
         }
 
         async restoreChat() {
-            const conversationExists = await ApiClient.checkConversationExists(Utils.getConversationId());
-            if (!conversationExists) {
-                console.log('Conversa não existe ao restaurar, reiniciando o chat...');
-                this.resetChat();
-                return;
-            }
-
-            const cacheKey = `chat_history_${Utils.getConversationId()}`;
-            const cachedMessages = Utils.getCache(cacheKey) || [];
+            // Iniciar o carregamento imediatamente
+            const startTime = performance.now();
+            
             if (!this.chatUIRendered) {
                 this.renderChatUI();
             }
-            cachedMessages.forEach((msg) => {
-                if (!this.messages.has(msg.id)) {
-                    this.addMessage(msg, true);
+            
+            const conversationId = Utils.getConversationId();
+            if (!conversationId) {
+                console.log('Sem ID de conversa, não é possível restaurar.');
+                return;
+            }
+            
+            console.log('Restaurando chat para conversa:', conversationId);
+            
+            try {
+                // Primeiro verificar se a conversa existe no servidor
+                const conversationExists = await ApiClient.checkConversationExists(conversationId);
+                if (!conversationExists) {
+                    console.log('Conversa não existe ao restaurar, reiniciando o chat...');
+                    this.showError('A conversa anterior não existe mais. Iniciando uma nova sessão.');
+                    this.resetChat(); // Reinicia completamente o chat
+                    return;
                 }
-            });
-            this.scrollToBottom();
-            await this.loadHistory();
+                
+                // Carregar histórico da API primeiro (prioridade)
+                await this.loadHistory();
+                
+                // Se não temos mensagens após carregar da API, tentar usar o cache como fallback
+                if (this.messages.size === 0) {
+                    console.log('Sem mensagens da API, tentando usar cache como fallback');
+                    const cacheKey = `chat_history_${conversationId}`;
+                    const cachedMessages = Utils.getCache(cacheKey) || [];
+                    
+                    if (cachedMessages.length > 0) {
+                        console.log(`Encontradas ${cachedMessages.length} mensagens no cache`);
+                        cachedMessages.forEach((msg) => {
+                            if (!this.messages.has(msg.id)) {
+                                this.addMessage(msg, true);
+                            }
+                        });
+                        this.scrollToBottom();
+                    } else {
+                        console.log('Cache vazio, sem mensagens para restaurar');
+                    }
+                }
+                
+                // Garantir tempo mínimo de carregamento para evitar flash do spinner
+                const elapsedTime = performance.now() - startTime;
+                const minLoadTime = 500; // Tempo mínimo de 500ms para mostrar o loading
+                
+                if (elapsedTime < minLoadTime) {
+                    await new Promise(resolve => setTimeout(resolve, minLoadTime - elapsedTime));
+                }
+                
+                // Esconder o indicador de carregamento
+                if (this.loadingIndicator) {
+                    this.loadingIndicator.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao restaurar chat:', error);
+                this.showError('Erro ao restaurar conversa');
+            }
         }
         
         // Métodos para o fluxo de chat
@@ -2144,6 +2391,11 @@
             // Usar o mesmo layout do chat normal
             this.renderChatUI();
             
+            // Garantir que o indicador de loading esteja escondido durante o fluxo
+            if (this.loadingIndicator) {
+                this.loadingIndicator.style.display = 'none';
+            }
+            
             // Garantir que o input de mensagem esteja oculto durante o fluxo
             if (this.inputContainer) {
                 this.inputContainer.style.display = 'none';
@@ -2155,7 +2407,7 @@
             
             const botIcon = document.createElement('div');
             botIcon.className = 'w-6 h-6 flex items-center justify-center rounded-full bg-primary mr-2';
-            botIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M12 8V4"></path><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M2 14h2"></path><path d="M20 14h2"></path><path d="M15 13v2"></path><path d="M9 13v2"></path></svg>';
+            botIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M2 14h2"></path><path d="M20 14h2"></path><path d="M15 13v2"></path><path d="M9 13v2"></path></svg>';
             
             const footerText = document.createElement('div');
             footerText.className = 'text-xs text-muted-foreground';
@@ -2170,7 +2422,7 @@
             // Adicionar um log para debug
             console.log('Renderizando fluxo de chat com nó atual:', this.currentNode);
             
-            // Processar o nó atual após um pequeno atraso para garantir que o DOM esteja pronto
+            // Processar o nó atual após um pequeno delay para garantir que o DOM esteja pronto
             setTimeout(() => {
                 this.processCurrentNode();
             }, 100);
@@ -2335,7 +2587,7 @@
                 const button = document.createElement('button');
                 button.className = 'px-4 py-2 text-sm border border-border rounded-md transition-colors hover:bg-muted mb-2';
                 
-                // Adicionar o texto da opção diretamente (sem ícone)
+                // Adicionar o texto da opção diretamente na bolha
                 button.textContent = choiceText;
                 
                 // Definir estilo base
@@ -2432,12 +2684,12 @@
                 edge = this.chatFlow.edges.find(e => e.source === nodeId);
             }
             
-            // Se não encontrar com source, tentar com source.id
+            // Se não encontrar, tenta com source.id
             if (!edge) {
                 edge = this.chatFlow.edges.find(e => e.source && e.source.id === nodeId);
             }
             
-            // Se não encontrar, tentar com sourceId
+            // Se não encontrar, tenta com sourceId
             if (!edge) {
                 edge = this.chatFlow.edges.find(e => e.sourceId === nodeId);
             }
@@ -2488,12 +2740,12 @@
             // Verificar diferentes formatos de conexão
             let edge = this.chatFlow.edges.find(e => e.source === currentNodeId);
             
-            // Se não encontrar, tentar com source.id
+            // Se não encontrar, tenta com source.id
             if (!edge) {
                 edge = this.chatFlow.edges.find(e => e.source && e.source.id === currentNodeId);
             }
             
-            // Se não encontrar, tentar com sourceId
+            // Se não encontrar, tenta com sourceId
             if (!edge) {
                 edge = this.chatFlow.edges.find(e => e.sourceId === currentNodeId);
             }
